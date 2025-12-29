@@ -1,15 +1,213 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client"
-  output   = "../lib/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// --- ENUMS ---
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum CustomerType {
+  INDIVIDUAL // Particulier
+  COMPANY    // Professionnel
+}
+
+// --- MODELS ---
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String   // Nom commercial
+  email     String?
+  phone     String?
+  logoLink  String?
+  
+  // Legal Address
+  address   String?
+  city      String?
+  zipCode   String?
+  country   String?  @default("France")
+  
+  // Legal Info
+  siret     String?  // Obligatoire sur facture
+  vatNumber String?  // TVA Intracommunautaire
+  
+  // Banking (RIB)
+  iban      String?
+  bic       String?
+  bankName  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  users     User[]
+  customers Customer[]
+  invoices  Invoice[]
+  quotes    Quote[]
+}
+
+model User {
+  id        String @id @default(uuid()) // Lié à Supabase Auth.users.id
+  email     String @unique
+  firstName String?
+  lastName  String?
+
+  // SECURITY: Multi-tenant linkage
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+model Customer {
+  id    String       @id @default(cuid())
+  type  CustomerType @default(COMPANY)
+  
+  // Si Company
+  companyName String?
+  vatNumber   String? 
+  
+  // Contact (Si Individual OU contact chez Company)
+  firstName   String?
+  lastName    String?
+  
+  email String?
+  phone String?
+  
+  // Address
+  address   String?
+  city      String?
+  zipCode   String?
+  country   String?
+
+  note      String?
+
+  // SECURITY: Multi-tenant filter
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  // Relations
+  invoices Invoice[]
+  quotes   Quote[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+model Invoice {
+  id          String        @id @default(cuid())
+  number      String        // Ex: INV-2024-001
+  status      InvoiceStatus @default(DRAFT)
+  date        DateTime      @default(now())
+  dueDate     DateTime
+  
+  // Money stored in CENTS (Int)
+  // Ces champs sont des CACHES calculés (somme des items) pour éviter de recalculer à chaque lecture
+  subtotal    Int           @default(0) 
+  discount    Int           @default(0)
+  tax         Int           @default(0)
+  total       Int           @default(0)
+
+  note        String?
+
+  // SECURITY: Multi-tenant filter
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  items InvoiceItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([customerId])
+}
+
+model InvoiceItem {
+  id          String  @id @default(cuid())
+  description String
+  details     String?
+  quantity    Int     @default(1)
+  unite       String @default("unité")
+  discount    Int     @default(0)
+  
+  price       Int     // Prix unitaire HT en CENTS
+  taxRate     Decimal @default(20.0) @db.Decimal(5, 2) // Ex: 20.00, 5.50
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+model Quote {
+  id          String      @id @default(cuid())
+  number      String      // Ex: DEVIS-2024-001
+  status      QuoteStatus @default(DRAFT)
+  date        DateTime    @default(now())
+  validUntil  DateTime
+
+  note        String?
+
+  // Money stored in CENTS (Int)
+  // Ces champs sont des CACHES calculés (somme des items) pour éviter de recalculer à chaque lecture
+  subtotal    Int         @default(0)
+  discount    Int         @default(0)
+  tax         Int         @default(0)
+  total       Int         @default(0)
+
+  // SECURITY: Multi-tenant filter
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  items QuoteItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([customerId])
+}
+
+model QuoteItem {
+  id          String  @id @default(cuid())
+  description String
+  details     String?
+  quantity    Int     @default(1)
+  unite       String @default("unité")
+  discount    Int     @default(0)
+  
+  price       Int     // Prix unitaire HT en CENTS
+  taxRate     Decimal @default(20.0) @db.Decimal(5, 2)
+
+  quoteId String
+  quote   Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
 }
