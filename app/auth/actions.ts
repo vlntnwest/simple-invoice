@@ -7,7 +7,6 @@ import prisma from "@/lib/prisma";
 
 export async function login(formData: FormData) {
   const supabase = await createClient();
-
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
@@ -16,14 +15,10 @@ export async function login(formData: FormData) {
     password,
   });
 
-  if (error) {
-    // Dans un cas réel, on retournerait l'erreur pour l'afficher
-    // Pour l'instant on redirect ou on log
-    return { error: error.message };
-  }
+  if (error) return { error: error.message };
 
   revalidatePath("/", "layout");
-  redirect("/");
+  redirect("/dashboard");
 }
 
 export async function signup(formData: FormData) {
@@ -35,41 +30,59 @@ export async function signup(formData: FormData) {
   const lastName = formData.get("lastName") as string;
   const companyName = formData.get("companyName") as string;
 
-  // 1. Création Auth Supabase
+  // 1. Auth Supabase
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
   });
 
-  if (authError) {
-    return { error: authError.message };
-  }
+  if (authError) return { error: authError.message };
+  if (!authData.user) return { error: "Erreur création user Supabase" };
 
-  if (!authData.user) {
-    return { error: "Erreur lors de la création de l'utilisateur" };
-  }
+  const userId = authData.user.id;
 
-  // 2. Transaction Prisma : Créer Org + User lié
+  // 2. Transaction Prisma Sécurisée
   try {
-    await prisma.organization.create({
-      data: {
-        name: companyName || `${firstName} ${lastName}`,
-        email: email,
-        users: {
-          create: {
-            id: authData.user.id, // Lien Auth <-> DB
-            email: email,
-            firstName: firstName,
-            lastName: lastName,
-          },
+    await prisma.$transaction(async (tx) => {
+      // A. On crée d'abord le User
+      // On utilise 'tx' au lieu de 'prisma' pour que tout soit lié
+      const newUser = await tx.user.create({
+        data: {
+          id: userId, // ID venant de Supabase
+          email: email,
+          firstName: firstName,
+          lastName: lastName,
         },
-      },
+      });
+
+      // B. On crée l'Organisation
+      const newOrg = await tx.organization.create({
+        data: {
+          name: companyName || `${firstName}'s Company`,
+        },
+      });
+
+      // C. On crée le lien (Membership) maintenant qu'on a les deux IDs !
+      await tx.membership.create({
+        data: {
+          userId: newUser.id,
+          organizationId: newOrg.id,
+          role: "ADMIN",
+        },
+      });
+
+      // D. On met à jour la vue par défaut
+      await tx.user.update({
+        where: { id: newUser.id },
+        data: { lastViewedOrgId: newOrg.id },
+      });
     });
   } catch (dbError) {
-    console.error("Erreur DB:", dbError);
-    return { error: "Erreur lors de l'initialisation du compte." };
+    console.error("GRAVE Erreur DB:", dbError);
+    // Ici, tu pourrais appeler supabase.auth.admin.deleteUser... pour nettoyer
+    return { error: "Erreur lors de l'initialisation de la base de données." };
   }
 
   revalidatePath("/", "layout");
-  redirect("/auth/sign-up-success");
+  redirect("/dashboard");
 }

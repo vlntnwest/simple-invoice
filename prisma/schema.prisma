@@ -10,6 +10,11 @@ datasource db {
 
 // --- ENUMS ---
 
+enum UserRole {
+  ADMIN
+  MEMBER
+}
+
 enum InvoiceStatus {
   DRAFT
   SENT
@@ -55,29 +60,47 @@ model Organization {
   bic       String?
   bankName  String?
 
+  memberships Membership[] // Liste des membres
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relations
-  users     User[]
   customers Customer[]
   invoices  Invoice[]
   quotes    Quote[]
 }
 
 model User {
-  id        String @id @default(uuid()) // Lié à Supabase Auth.users.id
-  email     String @unique
+  id        String   @id @default(uuid())
+  email     String   @unique
   firstName String?
   lastName  String?
+  
+  memberships Membership[]
 
-  // SECURITY: Multi-tenant linkage
+  lastViewedOrgId String? 
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Membership {
+  id        String   @id @default(cuid())
+  role      UserRole @default(MEMBER)
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Un user ne peut être membre qu'une seule fois de la même org
+  @@unique([userId, organizationId])
+  @@index([userId])
   @@index([organizationId])
 }
 
