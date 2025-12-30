@@ -57,7 +57,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-background">
-      <main className="md:ml-64">{children}</main>
+      <main className="">{children}</main>
     </div>
   );
 }
