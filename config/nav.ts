@@ -19,12 +19,12 @@ export const navItems = [
   },
   {
     name: "Clients",
-    href: "/customers",
+    href: "/dashboard/customers",
     icon: Users,
   },
   {
     name: "Factures",
-    href: "/invoices",
+    href: "/dashboard/invoices",
     icon: FileText,
   },
   {

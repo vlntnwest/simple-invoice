@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea"; // Assure-toi d'avoir ce composant
 import { Label } from "@/components/ui/label";
 import {
   Drawer,
@@ -16,10 +15,12 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import { createCustomer } from "./actions";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export function CustomerForm() {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCompany, setIsCompany] = useState(false); // false par défaut = Particulier
 
   async function onSubmit(formData: FormData) {
     setIsLoading(true);
@@ -27,9 +28,16 @@ export function CustomerForm() {
     setIsLoading(false);
 
     if (res?.error) {
-      alert(typeof res.error === "string" ? res.error : "Erreur de validation");
+      // Gestion simplifiée des erreurs pour l'exemple
+      const msg =
+        typeof res.error === "string"
+          ? res.error
+          : Object.values(res.error).flat().join(", ");
+      alert(msg);
     } else {
       setOpen(false);
+      // Reset form state si besoin
+      setIsCompany(false);
     }
   }
 
@@ -43,53 +51,73 @@ export function CustomerForm() {
       </DrawerTrigger>
 
       <DrawerContent>
-        {/* max-h-[85vh] et overflow-y-auto sont vitaux pour le mobile */}
-        <div className="mx-auto w-full max-w-sm max-h-[85vh] overflow-y-auto">
+        <div className="mx-auto w-full max-h-[85vh] overflow-y-auto">
           <DrawerHeader>
             <DrawerTitle>Ajouter un client</DrawerTitle>
           </DrawerHeader>
 
           <form action={onSubmit} className="p-4 space-y-4">
-            {/* ENTREPRISE */}
-            <div className="space-y-2">
-              <Label htmlFor="companyName">Nom de l'entreprise *</Label>
-              <Input
-                name="companyName"
-                id="companyName"
-                required
-                placeholder="Acme Corp"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="vatNumber">Numéro de TVA</Label>
-              <Input
-                name="vatNumber"
-                id="vatNumber"
-                placeholder="FR1234567890"
-              />
-            </div>
-
             {/* CONTACT */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Nom</Label>
-                <Input name="lastName" id="lastName" placeholder="Doe" />
-              </div>
+            <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName">Prénom</Label>
                 <Input name="firstName" id="firstName" placeholder="John" />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Nom {isCompany ? "" : "*"}</Label>
+                <Input name="lastName" id="lastName" placeholder="Doe" />
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            {/* TOGGLE TYPE CLIENT */}
+            <div className="flex items-center space-x-2 ">
+              <Checkbox
+                id="isCompany"
+                checked={isCompany}
+                onCheckedChange={(checked: boolean) => setIsCompany(checked)}
+              />
+              {/* TRICK: Input hidden pour envoyer la valeur au Server Action via FormData */}
+              <input
+                type="hidden"
+                name="isCompany"
+                value={isCompany ? "true" : "false"}
+              />
+
+              <Label htmlFor="isCompany" className="cursor-pointer font-medium">
+                Ce client est une entreprise
+              </Label>
+            </div>
+
+            {/* ENTREPRISE (Conditionnel) */}
+            {isCompany && (
+              <div className="grid md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
+                <div className="space-y-2">
+                  <Label htmlFor="companyName">Nom de l'entreprise *</Label>
+                  <Input
+                    name="companyName"
+                    id="companyName"
+                    placeholder="Acme Corp"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="vatNumber">Numéro de TVA</Label>
+                  <Input
+                    name="vatNumber"
+                    id="vatNumber"
+                    placeholder="FR1234567890"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
                   name="email"
                   id="email"
                   type="email"
-                  placeholder="contact@acme.com"
+                  placeholder="contact@exemple.com"
                 />
               </div>
               <div className="space-y-2">
@@ -134,15 +162,9 @@ export function CustomerForm() {
               />
             </div>
 
-            {/* NOTE */}
-            <div className="space-y-2">
-              <Label htmlFor="note">Note interne</Label>
-              <Textarea name="note" id="note" placeholder="Infos diverses..." />
-            </div>
-
             <DrawerFooter className="px-0 pt-4">
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Création..." : "Enregistrer"}
+                {isLoading ? "Création..." : "Enregistrer le client"}
               </Button>
               <DrawerClose asChild>
                 <Button variant="outline">Annuler</Button>
