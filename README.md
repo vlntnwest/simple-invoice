@@ -23,7 +23,7 @@ npm install
 
 ### 2. Variables d'environnement
 
-Renommer `.env.example` en `.env` (si applicable) ou créer un fichier `.env` avec les clés Supabase :
+Renommer `.env.example` en `.env.local` (si applicable) ou créer un fichier `.env.local` avec les clés Supabase :
 
 ```bash
 DATABASE_URL="postgres://..."
