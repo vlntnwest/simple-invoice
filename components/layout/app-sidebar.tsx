@@ -26,14 +26,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Package2, ChevronsUpDown, LogOut, Settings } from "lucide-react";
-import { LogoutButton } from "@/components/logout-button"; // Assure-toi que ce bouton accepte une className ou refactorise-le
+import { LogoutButton } from "@/components/logout-button";
 
-// On définit les props attendues (données serveur)
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   user: {
     firstName: string | null;
     email: string;
-    // Ajoute d'autres champs si nécessaire selon ton schema Prisma
   };
   organization: {
     name: string;
@@ -44,15 +42,14 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 export function AppSidebar({ user, organization, ...props }: AppSidebarProps) {
   const pathname = usePathname();
 
-  // Initiales pour l'avatar
   const initials = user.firstName
     ? user.firstName.slice(0, 2).toUpperCase()
     : user.email.slice(0, 2).toUpperCase();
 
   return (
     <Sidebar collapsible="icon" {...props}>
-      {/* HEADER : Organisation Switcher (Simplifié pour l'instant) */}
-      <SidebarHeader>
+      {/* HEADER */}
+      <SidebarHeader className="border-b h-16 justify-center py-0 px-2">
         <SidebarMenu>
           <SidebarMenuItem>
             <div className="flex items-center gap-2 data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
@@ -68,8 +65,6 @@ export function AppSidebar({ user, organization, ...props }: AppSidebarProps) {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-
-      <SidebarSeparator className="mx-0" />
 
       {/* CONTENT : Navigation Principale */}
       <SidebarContent>
@@ -149,9 +144,7 @@ export function AppSidebar({ user, organization, ...props }: AppSidebarProps) {
                 <DropdownMenuSeparator />
                 {/* Ici on intègre le bouton de logout */}
                 <DropdownMenuItem asChild>
-                  <div className="w-full cursor-pointer text-red-600 focus:text-red-600">
-                    <LogoutButton />
-                  </div>
+                  <LogoutButton />
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

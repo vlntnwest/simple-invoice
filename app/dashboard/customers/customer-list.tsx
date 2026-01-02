@@ -1,15 +1,20 @@
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Mail, Phone, MapPin } from "lucide-react";
+"use client";
+
+import { useState } from "react";
+import { Separator } from "@/components/ui/separator";
+import { ChevronRight, Building2, User } from "lucide-react";
+import { CustomerDetails } from "./customer-details";
 
 export function CustomerList({ customers }: { customers: any[] }) {
+  // Gestion de l'état local pour le panneau latéral
+  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+
+  const handleCustomerClick = (customer: any) => {
+    setSelectedCustomer(customer);
+    setIsSheetOpen(true);
+  };
+
   if (customers.length === 0) {
     return (
       <div className="text-center py-10 text-muted-foreground">
@@ -20,68 +25,53 @@ export function CustomerList({ customers }: { customers: any[] }) {
 
   return (
     <>
-      {/* VUE MOBILE : Cartes */}
-      <div className="grid gap-4 md:hidden">
-        {customers.map((c) => (
-          <Card key={c.id}>
-            <CardContent className="p-4 space-y-2">
-              <div className="flex justify-between items-start">
-                <h3 className="font-bold text-lg">{c.name}</h3>
-              </div>
+      {/* VUE MOBILE/DESKTOP : Liste Clickable */}
+      <ul className="flex flex-col border rounded-2xl bg-card overflow-hidden">
+        {customers.map((c, index) => {
+          // Déterminer le nom à afficher
+          const displayName = c.companyName || `${c.firstName} ${c.lastName}`;
+          const isCompany = !!c.companyName;
 
-              <div className="text-sm text-muted-foreground space-y-1">
-                {c.email && (
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4" /> {c.email}
+          return (
+            <li key={c.id}>
+              <button
+                onClick={() => handleCustomerClick(c)}
+                className="w-full px-4 py-4 text-left justify-start hover:bg-muted/50 transition-all focus:outline-none focus:bg-muted cursor-pointer"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm truncate">
+                      {displayName}
+                    </h3>
+                    {c.email && (
+                      <p className="text-muted-foreground text-xs truncate">
+                        {c.email}
+                      </p>
+                    )}
                   </div>
-                )}
-                {c.phone && (
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4" /> {c.phone}
-                  </div>
-                )}
-                {c.address && (
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />{" "}
-                    <span className="truncate max-w-[200px]">{c.address}</span>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
 
-      {/* VUE DESKTOP : Tableau */}
-      <div className="hidden md:block border rounded-md">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nom</TableHead>
-              <TableHead>Nom</TableHead>
-              <TableHead>Prénom</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Téléphone</TableHead>
-              <TableHead>Adresse</TableHead>
-              <TableHead>Code postal</TableHead>
-              <TableHead>Ville</TableHead>
-              <TableHead>Pays</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {customers.map((c) => (
-              <TableRow key={c.id}>
-                <TableCell className="font-medium">{c.name}</TableCell>
-                <TableCell>{c.email || "-"}</TableCell>
-                <TableCell>{c.phone || "-"}</TableCell>
-                <TableCell className="truncate max-w-[200px]">
-                  {c.address || "-"}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+                  <div className="ml-1 text-muted-foreground">
+                    <ChevronRight className="h-4 w-4" />
+                  </div>
+                </div>
+              </button>
+
+              {index < customers.length - 1 && (
+                <div className="px-4">
+                  <Separator />
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+
+      {/* LE PANNEAU LATÉRAL (Sheet) */}
+      <CustomerDetails
+        customer={selectedCustomer}
+        open={isSheetOpen}
+        onOpenChange={setIsSheetOpen}
+      />
     </>
   );
 }
