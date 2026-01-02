@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, AlertCircle } from "lucide-react"; // Ajout icône erreur
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,32 +14,57 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Optionnel: pour l'erreur globale
 import { createCustomer } from "./actions";
 import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils"; // Utilitaire pour fusionner les classes
 
 export function CustomerForm() {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isCompany, setIsCompany] = useState(false); // false par défaut = Particulier
+  const [isCompany, setIsCompany] = useState(false);
 
-  async function onSubmit(formData: FormData) {
+  // Nouveaux états pour la gestion d'erreur
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  const [globalError, setGlobalError] = useState<string>("");
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
     setIsLoading(true);
+    // On reset les erreurs avant la nouvelle tentative
+    setFieldErrors({});
+    setGlobalError("");
+
     const res = await createCustomer(formData);
     setIsLoading(false);
 
     if (res?.error) {
-      // Gestion simplifiée des erreurs pour l'exemple
-      const msg =
-        typeof res.error === "string"
-          ? res.error
-          : Object.values(res.error).flat().join(", ");
-      alert(msg);
+      if (typeof res.error === "string") {
+        // Cas 1: Erreur globale (ex: DB crash)
+        setGlobalError(res.error);
+      } else {
+        // Cas 2: Erreur de validation Zod (ex: email invalide)
+        setFieldErrors(res.error);
+      }
     } else {
+      // Succès
       setOpen(false);
-      // Reset form state si besoin
       setIsCompany(false);
+      setFieldErrors({});
+      setGlobalError("");
     }
   }
+
+  // Petit helper pour afficher l'erreur sous le champ
+  const ErrorMessage = ({ field }: { field: string }) => {
+    if (!fieldErrors[field]) return null;
+    return (
+      <p className="text-[0.8rem] font-medium text-destructive mt-1">
+        {fieldErrors[field][0]}
+      </p>
+    );
+  };
 
   return (
     <Drawer open={open} onOpenChange={setOpen}>
@@ -56,33 +81,69 @@ export function CustomerForm() {
             <DrawerTitle>Ajouter un client</DrawerTitle>
           </DrawerHeader>
 
-          <form action={onSubmit} className="p-4 space-y-4">
+          <form onSubmit={handleSubmit} className="p-4 space-y-4" noValidate>
+            {/* Bloc d'erreur Globale */}
+            {globalError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Erreur</AlertTitle>
+                <AlertDescription>{globalError}</AlertDescription>
+              </Alert>
+            )}
+
             {/* CONTACT */}
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="firstName">Prénom</Label>
-                <Input name="firstName" id="firstName" placeholder="John" />
+                <Label
+                  htmlFor="firstName"
+                  className={fieldErrors.firstName ? "text-destructive" : ""}
+                >
+                  Prénom
+                </Label>
+                <Input
+                  name="firstName"
+                  id="firstName"
+                  placeholder="John"
+                  className={cn(
+                    fieldErrors.firstName &&
+                      "border-destructive focus-visible:ring-destructive"
+                  )}
+                />
+                <ErrorMessage field="firstName" />
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="lastName">Nom {isCompany ? "" : "*"}</Label>
-                <Input name="lastName" id="lastName" placeholder="Doe" />
+                <Label
+                  htmlFor="lastName"
+                  className={fieldErrors.lastName ? "text-destructive" : ""}
+                >
+                  Nom {isCompany ? "" : "*"}
+                </Label>
+                <Input
+                  name="lastName"
+                  id="lastName"
+                  placeholder="Doe"
+                  className={cn(
+                    fieldErrors.lastName &&
+                      "border-destructive focus-visible:ring-destructive"
+                  )}
+                />
+                <ErrorMessage field="lastName" />
               </div>
             </div>
 
             {/* TOGGLE TYPE CLIENT */}
-            <div className="flex items-center space-x-2 ">
+            <div className="flex items-center space-x-2 border p-3 rounded-md bg-muted/20">
               <Checkbox
                 id="isCompany"
                 checked={isCompany}
                 onCheckedChange={(checked: boolean) => setIsCompany(checked)}
               />
-              {/* TRICK: Input hidden pour envoyer la valeur au Server Action via FormData */}
               <input
                 type="hidden"
                 name="isCompany"
                 value={isCompany ? "true" : "false"}
               />
-
               <Label htmlFor="isCompany" className="cursor-pointer font-medium">
                 Ce client est une entreprise
               </Label>
@@ -92,42 +153,86 @@ export function CustomerForm() {
             {isCompany && (
               <div className="grid md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
                 <div className="space-y-2">
-                  <Label htmlFor="companyName">Nom de l'entreprise *</Label>
+                  <Label
+                    htmlFor="companyName"
+                    className={
+                      fieldErrors.companyName ? "text-destructive" : ""
+                    }
+                  >
+                    Nom de l'entreprise *
+                  </Label>
                   <Input
                     name="companyName"
                     id="companyName"
                     placeholder="Acme Corp"
+                    className={cn(
+                      fieldErrors.companyName &&
+                        "border-destructive focus-visible:ring-destructive"
+                    )}
                   />
+                  <ErrorMessage field="companyName" />
                 </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="vatNumber">Numéro de TVA</Label>
+                  <Label
+                    htmlFor="vatNumber"
+                    className={fieldErrors.vatNumber ? "text-destructive" : ""}
+                  >
+                    Numéro de TVA
+                  </Label>
                   <Input
                     name="vatNumber"
                     id="vatNumber"
                     placeholder="FR1234567890"
+                    className={cn(
+                      fieldErrors.vatNumber &&
+                        "border-destructive focus-visible:ring-destructive"
+                    )}
                   />
+                  <ErrorMessage field="vatNumber" />
                 </div>
               </div>
             )}
 
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label
+                  htmlFor="email"
+                  className={fieldErrors.email ? "text-destructive" : ""}
+                >
+                  Email *
+                </Label>
                 <Input
                   name="email"
                   id="email"
                   type="email"
                   placeholder="contact@exemple.com"
+                  className={cn(
+                    fieldErrors.email &&
+                      "border-destructive focus-visible:ring-destructive"
+                  )}
                 />
+                <ErrorMessage field="email" />
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="phone">Téléphone</Label>
+                <Label
+                  htmlFor="phone"
+                  className={fieldErrors.phone ? "text-destructive" : ""}
+                >
+                  Téléphone
+                </Label>
                 <Input
                   name="phone"
                   id="phone"
                   type="tel"
-                  placeholder="06 12..."
+                  placeholder="06 12 34 56 78"
+                  className={cn(
+                    fieldErrors.phone &&
+                      "border-destructive focus-visible:ring-destructive"
+                  )}
                 />
+                <ErrorMessage field="phone" />
               </div>
             </div>
 
@@ -164,7 +269,7 @@ export function CustomerForm() {
 
             <DrawerFooter className="px-0 pt-4">
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Création..." : "Enregistrer le client"}
+                {isLoading ? "Enregistrement..." : "Enregistrer le client"}
               </Button>
               <DrawerClose asChild>
                 <Button variant="outline">Annuler</Button>

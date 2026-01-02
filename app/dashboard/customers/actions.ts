@@ -7,20 +7,46 @@ import { getUserContext } from "@/lib/context/context";
 import { CustomerType } from "@prisma/client";
 
 // Schéma de validation conditionnel
-const CustomerSchema = z.object({
-  type: z.nativeEnum(CustomerType), // Validation stricte de l'enum
-  firstName: z.string().optional(),
-  lastName: z.string().optional(),
-  // On accepte string vide ou null pour companyName au départ
-  companyName: z.string().optional().nullable(),
-  vatNumber: z.string().optional().nullable(),
-  email: z.string().email("Email invalide").optional().or(z.literal("")),
-  phone: z.string().optional(),
-  address: z.string().optional(),
-  city: z.string().optional(),
-  zipCode: z.string().optional(),
-  country: z.string().optional(),
-});
+const CustomerSchema = z
+  .object({
+    type: z.nativeEnum(CustomerType), // Validation stricte de l'enum
+    firstName: z.string().optional(),
+    lastName: z.string().optional(),
+    // On accepte string vide ou null pour companyName au départ
+    companyName: z.string().optional().nullable(),
+    vatNumber: z.string().optional().nullable(),
+    email: z
+      .string()
+      .min(1, "L'email est obligatoire")
+      .email("Format d'email invalide"),
+    phone: z.string().optional(),
+    address: z.string().optional(),
+    city: z.string().optional(),
+    zipCode: z.string().optional(),
+    country: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (
+      data.type === "COMPANY" &&
+      (!data.companyName || data.companyName.trim() === "")
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Le nom de l'entreprise est obligatoire",
+        path: ["companyName"],
+      });
+    }
+    if (
+      data.type === "INDIVIDUAL" &&
+      (!data.lastName || data.lastName.trim() === "")
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Le nom de famille est obligatoire",
+        path: ["lastName"],
+      });
+    }
+  });
 
 export async function createCustomer(formData: FormData) {
   const { organization } = await getUserContext();
