@@ -3,13 +3,13 @@
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   MapPin,
-  Hash,
   Calendar,
   PenLine,
   Eye,
@@ -56,6 +56,10 @@ export function CustomerDetails({
           <SheetTitle className="text-lg font-semibold truncate pr-8">
             {displayName}
           </SheetTitle>
+
+          <SheetDescription className="sr-only">
+            Détails complets pour le client {displayName}
+          </SheetDescription>
         </SheetHeader>
 
         <div className="p-6 space-y-8">
@@ -139,7 +143,7 @@ function ActionButton({
     >
       <div
         className={cn(
-          "h-12 w-12 rounded-full flex items-center justify-center shadow-sm transition-all group-hover:scale-105",
+          "h-12 w-12 rounded-full flex items-center justify-center  transition-all group-hover:scale-105",
           highlight
             ? "bg-primary text-primary-foreground shadow-primary/25"
             : "bg-background border hover:bg-muted"
