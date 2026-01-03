@@ -5,6 +5,7 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { getUserContext } from "@/lib/context/context";
 import { CustomerType } from "@prisma/client";
+import { redirect } from "next/navigation";
 
 export type ActionState = {
   success?: boolean;
@@ -160,4 +161,41 @@ export async function updateCustomer(formData: FormData): Promise<ActionState> {
     console.error("Erreur Update:", error);
     return { error: "Erreur technique lors de la mise à jour." };
   }
+}
+
+export async function deleteCustomer(formData: FormData): Promise<ActionState> {
+  const { organization } = await getUserContext();
+  if (!organization) return { error: "Session expirée" };
+
+  const id = formData.get("id") as string;
+
+  if (!id) return { error: "ID du client manquant" };
+
+  try {
+    // SECURITY: On vérifie que le client appartient bien à l'organisation avant de supprimer
+    const count = await prisma.customer.count({
+      where: {
+        id: id,
+        organizationId: organization.id,
+      },
+    });
+
+    if (count === 0) return { error: "Client introuvable ou accès refusé" };
+
+    // Suppression
+    await prisma.customer.delete({
+      where: { id },
+    });
+  } catch (error) {
+    console.error("Erreur Delete:", error);
+    // Erreur typique : Le client a déjà des factures (Constraint Violation)
+    return {
+      error:
+        "Impossible de supprimer ce client (il est probablement lié à des factures).",
+    };
+  }
+
+  // Succès : On revalide et on redirige
+  revalidatePath("/dashboard/customers");
+  redirect("/dashboard/customers");
 }

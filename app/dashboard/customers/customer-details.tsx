@@ -22,6 +22,8 @@ import { cn } from "@/lib/utils";
 import { DetailRow } from "./components/detail-row";
 import { DetailGroup } from "./components/detail-group";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { DeleteCustomerDialog } from "./components/delete-customer-dialog";
 
 interface CustomerDetailsProps {
   customer: any;
