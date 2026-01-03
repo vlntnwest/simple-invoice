@@ -21,6 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 import { DetailRow } from "./components/detail-row";
 import { DetailGroup } from "./components/detail-group";
+import Link from "next/link";
 
 interface CustomerDetailsProps {
   customer: any;
@@ -72,10 +73,15 @@ export function CustomerDetails({
               </AvatarFallback>
             </Avatar>
           </div>
-
           {/* ACTIONS */}
           <div className="flex justify-center gap-6">
-            <ActionButton icon={PenLine} label="Modifier" onClick={() => {}} />
+            <Link href={`/dashboard/customers/edit/${customer.id}`}>
+              <ActionButton
+                icon={PenLine}
+                label="Modifier"
+                onClick={() => {}}
+              />
+            </Link>
             <ActionButton
               icon={Eye}
               label="Aperçu"
@@ -98,7 +104,6 @@ export function CustomerDetails({
             />
             <DetailRow icon={MapPin} value={formattedAddress} isMultiLine />
           </DetailGroup>
-
           {/* GROUPE 2 : DETAILS */}
           <DetailGroup title="Plus de détails">
             {customer.vatNumber && (
@@ -116,7 +121,6 @@ export function CustomerDetails({
               copyValue={new Date(customer.createdAt).toISOString()}
             />
           </DetailGroup>
-
           <div className="h-10" />
         </div>
       </SheetContent>

@@ -44,7 +44,7 @@ export function DetailRow({
       onClick={handleCopy}
       disabled={!isClickable}
       className={cn(
-        "flex w-full items-center py-3 px-4 gap-4 text-left transition-colors group",
+        "flex w-full items-center py-3 px-4 gap-4 text-left transition-colors group rounded-xl",
         isClickable
           ? "hover:bg-muted/50 cursor-pointer active:bg-muted"
           : "cursor-default opacity-80"

@@ -6,13 +6,17 @@ import prisma from "@/lib/prisma";
 import { getUserContext } from "@/lib/context/context";
 import { CustomerType } from "@prisma/client";
 
-// Schéma de validation conditionnel
+export type ActionState = {
+  success?: boolean;
+  error?: string | null;
+  fieldErrors?: Record<string, string[]>;
+};
+
 const CustomerSchema = z
   .object({
-    type: z.nativeEnum(CustomerType), // Validation stricte de l'enum
+    type: z.nativeEnum(CustomerType),
     firstName: z.string().optional(),
     lastName: z.string().optional(),
-    // On accepte string vide ou null pour companyName au départ
     companyName: z.string().optional().nullable(),
     vatNumber: z.string().optional().nullable(),
     email: z
@@ -48,12 +52,16 @@ const CustomerSchema = z
     }
   });
 
+const UpdateCustomerSchema = CustomerSchema.extend({
+  id: z.string().min(1),
+});
+
 export async function createCustomer(formData: FormData) {
   const { organization } = await getUserContext();
   if (!organization) return { error: "Organisation introuvable" };
 
   // 1. Déterminer le type
-  const isCompany = formData.get("isCompany") === "true"; // On va passer "true" via un input hidden
+  const isCompany = formData.get("isCompany") === "true";
   const type = isCompany ? "COMPANY" : "INDIVIDUAL";
 
   const rawData = {
@@ -82,7 +90,6 @@ export async function createCustomer(formData: FormData) {
     await prisma.customer.create({
       data: {
         ...validated.data,
-        // Nettoyage : si Individual, on force companyName à null pour être propre
         companyName: type === "INDIVIDUAL" ? null : validated.data.companyName,
         organizationId: organization.id,
       },
@@ -93,5 +100,64 @@ export async function createCustomer(formData: FormData) {
   } catch (error) {
     console.error(error);
     return { error: "Erreur serveur lors de la création." };
+  }
+}
+
+export async function updateCustomer(formData: FormData): Promise<ActionState> {
+  const { organization } = await getUserContext();
+  if (!organization) return { error: "Session expirée" };
+
+  const isCompany = formData.get("isCompany") === "true";
+  const type = isCompany ? "COMPANY" : "INDIVIDUAL";
+
+  const rawData = {
+    id: formData.get("id"),
+    type,
+    firstName: formData.get("firstName"),
+    lastName: formData.get("lastName"),
+    companyName: formData.get("companyName"),
+    vatNumber: formData.get("vatNumber"),
+    email: formData.get("email"),
+    phone: formData.get("phone"),
+    address: formData.get("address"),
+    city: formData.get("city"),
+    zipCode: formData.get("zipCode"),
+    country: formData.get("country"),
+  };
+
+  const validated = UpdateCustomerSchema.safeParse(rawData);
+
+  if (!validated.success) {
+    return { fieldErrors: validated.error.flatten().fieldErrors };
+  }
+
+  try {
+    // SECURITY: Multi-tenant update
+    // On vérifie d'abord que le client appartient à l'org
+    const count = await prisma.customer.count({
+      where: {
+        id: validated.data.id,
+        organizationId: organization.id,
+      },
+    });
+
+    if (count === 0) return { error: "Client introuvable ou accès refusé" };
+
+    await prisma.customer.update({
+      where: { id: validated.data.id },
+      data: {
+        ...validated.data,
+        companyName: type === "INDIVIDUAL" ? null : validated.data.companyName,
+      },
+    });
+
+    revalidatePath("/dashboard/customers");
+    // On revalide aussi la page spécifique
+    revalidatePath(`/dashboard/customers/edit/${validated.data.id}`);
+
+    return { success: true };
+  } catch (error) {
+    console.error("Erreur Update:", error);
+    return { error: "Erreur technique lors de la mise à jour." };
   }
 }

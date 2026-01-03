@@ -14,7 +14,7 @@ export function DetailGroup({
     <div className="space-y-3">
       {title && <h3 className="font-semibold text-lg">{title}</h3>}
 
-      <div className="bg-muted/30 rounded-xl border overflow-hidden">
+      <div className="rounded-xl border overflow-hidden">
         {items.map((child, index) => (
           <Fragment key={index}>
             {child}
