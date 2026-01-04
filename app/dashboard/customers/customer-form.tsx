@@ -69,7 +69,7 @@ export function CustomerForm() {
   return (
     <Drawer open={open} onOpenChange={setOpen}>
       <DrawerTrigger asChild>
-        <Button className="fixed bottom-20 right-4 z-40 h-14 w-14 rounded-full shadow-lg md:static md:h-10 md:w-auto md:rounded-md md:shadow-none">
+        <Button className="fixed bottom-20 right-4 z-40 h-14 w-14 rounded-full shadow-lg md:static md:h-auto md:w-auto md:rounded-md md:shadow-none">
           <Plus className="h-6 w-6 md:mr-2 md:h-4 md:w-4" />
           <span className="hidden md:inline">Nouveau Client</span>
         </Button>

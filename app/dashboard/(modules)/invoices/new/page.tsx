@@ -1,6 +1,7 @@
 import { InvoiceForm } from "../components/invoice-form";
 import prisma from "@/lib/prisma";
 import { requireUserOrganization } from "@/lib/context/organization";
+import ReturnArrow from "@/components/returnArrow";
 
 export default async function NewInvoicePage() {
   const organizationId = await requireUserOrganization();
@@ -29,7 +30,10 @@ export default async function NewInvoicePage() {
 
   return (
     <div className="w-full max-w-4xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-6">Nouvelle Facture</h1>
+      <div className="flex items-center space-x-2 mb-4">
+        <ReturnArrow />
+        <h1 className="text-2xl font-bold tracking-tight">Nouvelle Facture</h1>
+      </div>
       <InvoiceForm customers={formattedCustomers} />
     </div>
   );

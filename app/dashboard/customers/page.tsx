@@ -15,8 +15,8 @@ export default async function CustomersPage() {
   });
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between pt-4">
+    <div className="p-4 space-y-4 pb-24">
+      <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Clients</h1>
         <CustomerForm />
       </div>

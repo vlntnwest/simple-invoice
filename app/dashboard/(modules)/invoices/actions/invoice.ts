@@ -266,3 +266,28 @@ export async function updateInvoice(
     };
   }
 }
+
+export async function deleteInvoice(id: string): Promise<ActionState> {
+  const { organization } = await getUserContext();
+  if (!organization) return { error: "Non autorisé" };
+
+  try {
+    const count = await prisma.invoice.count({
+      where: { id, organizationId: organization.id },
+    });
+
+    if (count === 0) {
+      return { error: "Facture introuvable ou accès refusé" };
+    }
+
+    await prisma.invoice.delete({
+      where: { id },
+    });
+
+    revalidatePath("/dashboard/invoices");
+    return { success: true };
+  } catch (error) {
+    console.error("Erreur deleteInvoice:", error);
+    return { error: "Impossible de supprimer la facture." };
+  }
+}
