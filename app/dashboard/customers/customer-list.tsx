@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Separator } from "@/components/ui/separator";
-import { ChevronRight, Building2, User } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { CustomerDetails } from "./customer-details";
 
 export function CustomerList({ customers }: { customers: any[] }) {
@@ -30,7 +30,6 @@ export function CustomerList({ customers }: { customers: any[] }) {
         {customers.map((c, index) => {
           // Déterminer le nom à afficher
           const displayName = c.companyName || `${c.firstName} ${c.lastName}`;
-          const isCompany = !!c.companyName;
 
           return (
             <li key={c.id}>
