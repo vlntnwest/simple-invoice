@@ -9,7 +9,7 @@ import {
 } from "@/lib/schemas/invoice";
 import { revalidatePath } from "next/cache";
 import { getUserWithOrg } from "@/lib/auth-helpers";
-import { redirect } from "next/navigation";
+import { getUserContext } from "@/lib/context/context";
 
 function generateNextNumber(lastNumber: string | undefined): string {
   if (!lastNumber) return "INV-001";
@@ -157,4 +157,112 @@ export async function switchOrganization(newOrgId: string) {
   });
 
   revalidatePath("/", "layout");
+}
+
+export type ActionState = {
+  success?: boolean;
+  error?: string | null;
+  fieldErrors?: Record<string, string[]>;
+};
+
+export async function updateInvoice(
+  invoiceId: string,
+  data: CreateInvoiceValues
+): Promise<ActionState> {
+  const { organization } = await getUserContext();
+  if (!organization) return { error: "Non autorisé" };
+
+  const validated = createInvoiceSchema.safeParse(data);
+  if (!validated.success) {
+    return {
+      error: "Données invalides",
+      fieldErrors: validated.error.flatten().fieldErrors,
+    };
+  }
+
+  const { customerId, date, dueDate, status, number, items } = validated.data;
+
+  // 1. Préparation des items & Calculs
+  let subtotalCents = 0;
+  let totalTaxCents = 0;
+
+  const prismaItems = items.map((item) => {
+    const priceCents = Math.round(item.price * 100);
+    const quantity = item.quantity;
+    const taxRate = item.taxRate;
+    // On récupère le discount (assumons qu'il est stocké en int/pourcentage tel quel, sinon faire * 100 si c'est des euros)
+    const discount = item.discount || 0;
+
+    // NOTE: Ici, il faut savoir si le discount affecte le total calculé.
+    // Pour l'instant, je garde ta logique simple (Prix * Qté),
+    // mais idéalement : lineTotal = (priceCents * quantity) - discountCents;
+    const lineTotalCents = priceCents * quantity;
+    const lineTaxCents = lineTotalCents * (taxRate / 100);
+
+    subtotalCents += lineTotalCents;
+    totalTaxCents += lineTaxCents;
+
+    return {
+      description: item.description,
+      details: item.details,
+      quantity: quantity,
+      unite: item.unite,
+      price: priceCents,
+      taxRate: taxRate,
+      discount: discount, // <--- AJOUT CRITIQUE ICI
+    };
+  });
+
+  const totalCents = subtotalCents + totalTaxCents;
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Vérification
+      const existingInvoice = await tx.invoice.findFirst({
+        where: { id: invoiceId, organizationId: organization.id },
+      });
+
+      if (!existingInvoice) {
+        throw new Error("Facture introuvable ou accès refusé.");
+      }
+
+      // Update Header
+      await tx.invoice.update({
+        where: { id: invoiceId },
+        data: {
+          customerId,
+          number,
+          date,
+          dueDate,
+          status,
+          subtotal: Math.round(subtotalCents),
+          tax: Math.round(totalTaxCents),
+          total: Math.round(totalCents),
+        },
+      });
+
+      // Update Items (Delete + Recreate)
+      await tx.invoiceItem.deleteMany({
+        where: { invoiceId: invoiceId },
+      });
+
+      if (prismaItems.length > 0) {
+        await tx.invoiceItem.createMany({
+          data: prismaItems.map((item) => ({
+            ...item,
+            invoiceId: invoiceId,
+          })),
+        });
+      }
+    });
+
+    revalidatePath("/dashboard/invoices");
+    revalidatePath(`/dashboard/invoices/edit/${invoiceId}`);
+    return { success: true };
+  } catch (error: any) {
+    console.error("Erreur updateInvoice:", error);
+    return {
+      error: "Erreur technique lors de la mise à jour.",
+    };
+  }
 }

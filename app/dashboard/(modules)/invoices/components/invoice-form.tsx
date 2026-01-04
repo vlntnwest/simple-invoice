@@ -6,7 +6,11 @@ import {
   CreateInvoiceValues,
   createInvoiceSchema,
 } from "@/lib/schemas/invoice";
-import { createInvoice } from "@/app/actions/invoices";
+import {
+  ActionState,
+  createInvoice,
+  updateInvoice,
+} from "@/app/dashboard/(modules)/invoices/actions/invoice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,8 +35,18 @@ import { useTransition } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { DatePicker } from "@/components/ui/date-picker";
 import { useRouter } from "next/navigation";
+import { Invoice, InvoiceItem } from "@prisma/client";
+
+// Types simplifiés pour l'UI
+type CustomerOption = {
+  id: string;
+  companyName?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+};
 
 type Props = {
+  invoice?: Invoice & { items: InvoiceItem[] };
   customers: { id: string; name: string }[];
 };
 
@@ -41,30 +55,47 @@ const VAT_RATES = [
   { value: "10", label: "10%" },
   { value: "5.5", label: "5.5%" },
   { value: "2.1", label: "2.1%" },
-  { value: "0", label: "0% (Exo)" },
+  { value: "0", label: "0%" },
 ];
 
-export function InvoiceForm({ customers }: Props) {
+export function InvoiceForm({ invoice, customers }: Props) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+  const isEditMode = !!invoice;
+
+  // Préparation des valeurs par défaut
+  const defaultValues: Partial<CreateInvoiceValues> = {
+    number: invoice?.number ?? "",
+    customerId: invoice?.customerId ?? "",
+    date: invoice?.date ? new Date(invoice.date) : new Date(),
+    dueDate: invoice?.dueDate ? new Date(invoice.dueDate) : undefined,
+    status: invoice?.status ?? "DRAFT",
+    items: invoice?.items
+      ? invoice.items.map((item) => ({
+          description: item.description,
+          details: item.details ?? "",
+          quantity: item.quantity,
+          unite: item.unite ?? "unité",
+          price: item.price / 100,
+          taxRate: Number(item.taxRate),
+          discount: item.discount ?? 0,
+        }))
+      : [
+          {
+            description: "",
+            details: "",
+            quantity: 1,
+            unite: "unité",
+            price: 0,
+            taxRate: 20,
+            discount: 0,
+          },
+        ],
+  };
 
   const form = useForm<CreateInvoiceValues>({
     resolver: zodResolver(createInvoiceSchema),
-    defaultValues: {
-      number: "",
-      date: new Date(),
-      status: "DRAFT",
-      items: [
-        {
-          description: "",
-          details: "",
-          quantity: 1,
-          unite: "unité",
-          price: 0,
-          taxRate: 20,
-        },
-      ],
-    },
+    defaultValues,
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -73,25 +104,42 @@ export function InvoiceForm({ customers }: Props) {
   });
 
   const items = form.watch("items");
+
+  // Calcul du total en temps réel (basé sur les valeurs du formulaire en Euros)
   const estimatedTotal = items?.reduce((acc, item) => {
     const quantity = item.quantity || 0;
     const price = item.price || 0;
     const tax = item.taxRate || 0;
-    return acc + price * quantity * (1 + tax / 100);
+    const discount = item.discount || 0;
+    return acc + price * quantity * (1 + tax / 100) * (1 - discount / 100);
   }, 0);
 
   function onSubmit(data: CreateInvoiceValues) {
     startTransition(async () => {
       try {
-        const result = await createInvoice(data);
+        let result: ActionState;
+
+        if (isEditMode) {
+          result = await updateInvoice(invoice.id, data);
+        } else {
+          result = await createInvoice(data);
+        }
 
         if (result.success) {
-          toast.success("Facture créée avec succès");
+          toast.success(
+            isEditMode ? "Facture mise à jour" : "Facture créée avec succès"
+          );
           router.push("/dashboard/invoices");
           router.refresh();
+        } else {
+          toast.error(result.error || "Une erreur est survenue");
+
+          if (result.fieldErrors) {
+            console.error(result.fieldErrors);
+          }
         }
       } catch (error) {
-        toast.error("Erreur lors de la création");
+        toast.error("Erreur serveur inattendue");
         console.error(error);
       }
     });
@@ -109,8 +157,7 @@ export function InvoiceForm({ customers }: Props) {
             Informations
           </div>
 
-          {/* GRILLE 2 COLONNES FORCEE (Même sur mobile) */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* 1. Client */}
             <FormField
               control={form.control}
@@ -118,13 +165,10 @@ export function InvoiceForm({ customers }: Props) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Client</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value || ""}
-                  >
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Client..." />
+                        <SelectValue placeholder="Sélectionner un client..." />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -150,9 +194,10 @@ export function InvoiceForm({ customers }: Props) {
                   <FormControl>
                     <Input
                       {...field}
-                      // Si la valeur est undefined, on met une chaine vide pour éviter le warning React
                       value={field.value || ""}
-                      placeholder="Laisser vide pour auto (ex: INV-005)"
+                      placeholder="Auto (ex: 26303)"
+                      // On désactive souvent l'édition du numéro en mode update pour éviter les trous de séquence
+                      disabled={isEditMode && !!field.value}
                     />
                   </FormControl>
                   <FormMessage />
@@ -172,9 +217,16 @@ export function InvoiceForm({ customers }: Props) {
                       date={field.value}
                       setDate={(date) => {
                         field.onChange(date);
+                        // Logique auto update dueDate si nécessaire
                         const currentDueDate = form.getValues("dueDate");
-                        if (date && currentDueDate && date > currentDueDate) {
-                          form.setValue("dueDate", date);
+                        if (
+                          date &&
+                          (!currentDueDate || date > currentDueDate)
+                        ) {
+                          // Par défaut +30 jours par exemple
+                          const newDue = new Date(date);
+                          newDue.setDate(newDue.getDate() + 30);
+                          form.setValue("dueDate", newDue);
                         }
                       }}
                       label="Date"
@@ -213,7 +265,6 @@ export function InvoiceForm({ customers }: Props) {
             <h3 className="text-lg font-semibold">Articles</h3>
           </div>
 
-          {/* Correction layout : Ajout de md:grid md:grid-cols-2 */}
           <div className="space-y-4 md:gap-4">
             {fields.map((field, index) => (
               <div
@@ -222,21 +273,17 @@ export function InvoiceForm({ customers }: Props) {
               >
                 <div className="relative flex flex-col gap-4">
                   {/* Ligne 1 : Nom */}
-                  <div className="pr-10">
+                  <div className="mt-4">
                     <FormField
                       control={form.control}
                       name={`items.${index}.description`}
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-xs font-semibold uppercase text-slate-500">
-                            Nom
+                            Description
                           </FormLabel>
                           <FormControl>
-                            <Input
-                              {...field}
-                              placeholder="Article..."
-                              className="font-medium"
-                            />
+                            <Input {...field} placeholder="Prestation..." />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -267,7 +314,7 @@ export function InvoiceForm({ customers }: Props) {
                   </div>
 
                   {/* Ligne 3 : Prix & TVA */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <FormField
                       control={form.control}
                       name={`items.${index}.price`}
@@ -281,13 +328,9 @@ export function InvoiceForm({ customers }: Props) {
                               type="number"
                               step="0.01"
                               {...field}
-                              onChange={(e) => {
-                                const val =
-                                  e.target.value === ""
-                                    ? 0
-                                    : parseFloat(e.target.value);
-                                field.onChange(val);
-                              }}
+                              onChange={(e) =>
+                                field.onChange(parseFloat(e.target.value) || 0)
+                              }
                             />
                           </FormControl>
                         </FormItem>
@@ -300,13 +343,13 @@ export function InvoiceForm({ customers }: Props) {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-xs font-semibold uppercase text-slate-500">
-                            TVA
+                            TVA (%)
                           </FormLabel>
                           <Select
                             onValueChange={(val) =>
                               field.onChange(parseFloat(val))
                             }
-                            value={field.value.toString()} // Correction : Value contrôlée
+                            value={field.value?.toString()}
                           >
                             <FormControl>
                               <SelectTrigger className="w-full">
@@ -326,28 +369,24 @@ export function InvoiceForm({ customers }: Props) {
                     />
                   </div>
 
-                  {/* Ligne 4 : Quantité & Unité */}
-                  <div className="grid grid-cols-2 gap-4">
+                  {/* Ligne 6 : Quantité & Unité */}
+                  <div className="grid grid-cols-2 gap-3">
                     <FormField
                       control={form.control}
                       name={`items.${index}.quantity`}
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-xs font-semibold uppercase text-slate-500">
-                            Qté
+                            Quantité
                           </FormLabel>
                           <FormControl>
                             <Input
                               type="number"
                               step="0.01"
                               {...field}
-                              onChange={(e) => {
-                                const val =
-                                  e.target.value === ""
-                                    ? 0
-                                    : parseFloat(e.target.value);
-                                field.onChange(val);
-                              }}
+                              onChange={(e) =>
+                                field.onChange(parseFloat(e.target.value) || 0)
+                              }
                             />
                           </FormControl>
                         </FormItem>
@@ -363,15 +402,13 @@ export function InvoiceForm({ customers }: Props) {
                             Unité
                           </FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="Jours..." />
+                            <Input {...field} placeholder="Jours, Hrs..." />
                           </FormControl>
                         </FormItem>
                       )}
                     />
                   </div>
                 </div>
-
-                {/* Bouton supprimer */}
                 <Button
                   type="button"
                   variant="link"
@@ -382,43 +419,51 @@ export function InvoiceForm({ customers }: Props) {
                 </Button>
               </div>
             ))}
+
+            {/* Carte d'ajout */}
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full border-dashed border-2"
+              onClick={() =>
+                append({
+                  description: "",
+                  details: "",
+                  quantity: 1,
+                  unite: "unité",
+                  price: 0,
+                  discount: 0,
+                  taxRate: 20,
+                })
+              }
+            >
+              <Plus className="h-4 w-4 mr-2" /> <span>Ajouter un article</span>
+            </Button>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full border-dashed border-2"
-            onClick={() =>
-              append({
-                description: "",
-                details: "",
-                quantity: 1,
-                unite: "Jours",
-                price: 0,
-                discount: 0,
-                taxRate: 20,
-              })
-            }
-          >
-            <Plus className="h-4 w-4 mr-2" /> Ajouter un article
-          </Button>
         </div>
 
-        {/* BOTTOM BAR / TOTAUX */}
+        {/* BOTTOM BAR */}
         <div className="p-4 bg-white border-t dark:bg-slate-950 z-10 md:relative md:bg-transparent md:border-t-0 md:p-0">
-          <div className="max-w-5xl mx-auto flex flex-col gap-3">
-            <div className="flex justify-between items-center text-lg font-bold px-1">
-              <span>Total Estimé TTC</span>
-              <span className="text-primary">
+          <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
+            <div className="flex flex-col">
+              <span className="text-xs text-slate-500 uppercase font-semibold">
+                Total TTC
+              </span>
+              <span className="text-xl font-bold text-primary">
                 {formatCurrency(estimatedTotal)}
               </span>
             </div>
             <Button
               type="submit"
-              className="w-full font-bold"
+              className="w-1/2 md:w-auto md:px-8"
               size="lg"
               disabled={isPending}
             >
-              {isPending ? "Création..." : "Valider la facture"}
+              {isPending
+                ? "Enregistrement..."
+                : isEditMode
+                ? "Modifier"
+                : "Créer"}
             </Button>
           </div>
         </div>

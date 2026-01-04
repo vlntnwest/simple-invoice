@@ -1,4 +1,4 @@
-import { InvoiceForm } from "@/components/invoicing/invoice-form";
+import { InvoiceForm } from "../components/invoice-form";
 import prisma from "@/lib/prisma";
 import { requireUserOrganization } from "@/lib/context/organization";
 

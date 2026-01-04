@@ -1,4 +1,4 @@
-import { getInvoices } from "@/app/actions/invoices";
+import { getInvoices } from "@/app/dashboard/(modules)/invoices/actions/invoice";
 import { Button } from "@/components/ui/button";
 import { ChevronRight, Plus } from "lucide-react";
 import Link from "next/link";

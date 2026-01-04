@@ -182,8 +182,7 @@ model InvoiceItem {
   discount    Int     @default(0)
   
   price       Int     // Prix unitaire HT en CENTS
-  taxRate     Decimal @default(20.0) @db.Decimal(5, 2) // Ex: 20.00, 5.50
-
+taxRate      Float @default(20.0)
   invoiceId String
   invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 }
@@ -229,8 +228,7 @@ model QuoteItem {
   discount    Int     @default(0)
   
   price       Int     // Prix unitaire HT en CENTS
-  taxRate     Decimal @default(20.0) @db.Decimal(5, 2)
-
+taxRate      Float @default(20.0)
   quoteId String
   quote   Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
 }
