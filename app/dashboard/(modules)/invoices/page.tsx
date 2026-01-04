@@ -7,8 +7,9 @@ import { Separator } from "@/components/ui/separator";
 
 const STATEVALUES = {
   DRAFT: "Brouillon",
-  PENDING: "En attente",
+  SENT: "Envoyée",
   PAID: "Payé",
+  OVERDUE: "En retard",
   CANCELED: "Annulé",
 };
 

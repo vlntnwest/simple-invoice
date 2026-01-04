@@ -29,21 +29,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Receipt } from "lucide-react";
+import { CheckCircle, FileText, Plus, Receipt, Save } from "lucide-react";
 import { toast } from "sonner";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { DatePicker } from "@/components/ui/date-picker";
 import { useRouter } from "next/navigation";
 import { Invoice, InvoiceItem } from "@prisma/client";
-
-// Types simplifiés pour l'UI
-type CustomerOption = {
-  id: string;
-  companyName?: string | null;
-  firstName?: string | null;
-  lastName?: string | null;
-};
 
 type Props = {
   invoice?: Invoice & { items: InvoiceItem[] };
@@ -62,6 +54,8 @@ export function InvoiceForm({ invoice, customers }: Props) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const isEditMode = !!invoice;
+
+  const [submitAction, setSubmitAction] = useState<"save" | "generate">("save");
 
   // Préparation des valeurs par défaut
   const defaultValues: Partial<CreateInvoiceValues> = {
@@ -117,6 +111,14 @@ export function InvoiceForm({ invoice, customers }: Props) {
   function onSubmit(data: CreateInvoiceValues) {
     startTransition(async () => {
       try {
+        if (submitAction === "generate") {
+          data.status = "SENT";
+        } else {
+          if (data.status !== "PAID") {
+            data.status = "DRAFT";
+          }
+        }
+
         let result: ActionState;
 
         if (isEditMode) {
@@ -126,20 +128,20 @@ export function InvoiceForm({ invoice, customers }: Props) {
         }
 
         if (result.success) {
-          toast.success(
-            isEditMode ? "Facture mise à jour" : "Facture créée avec succès"
-          );
-          router.push("/dashboard/invoices");
+          if (submitAction === "generate") {
+            toast.success("Facture validée ! PDF prêt.");
+            // TODO Phase 6: Ici on redirigera vers la vue PDF ou on ouvrira le fichier
+            router.push(`/dashboard/invoices`);
+          } else {
+            toast.success("Brouillon sauvegardé");
+            router.push("/dashboard/invoices");
+          }
           router.refresh();
         } else {
           toast.error(result.error || "Une erreur est survenue");
-
-          if (result.fieldErrors) {
-            console.error(result.fieldErrors);
-          }
         }
       } catch (error) {
-        toast.error("Erreur serveur inattendue");
+        toast.error("Erreur serveur");
         console.error(error);
       }
     });
@@ -453,18 +455,37 @@ export function InvoiceForm({ invoice, customers }: Props) {
                 {formatCurrency(estimatedTotal)}
               </span>
             </div>
-            <Button
-              type="submit"
-              className="w-1/2 md:w-auto md:px-8"
-              size="lg"
-              disabled={isPending}
-            >
-              {isPending
-                ? "Enregistrement..."
-                : isEditMode
-                ? "Modifier"
-                : "Créer"}
-            </Button>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              {/* BOUTON 1 : Sauvegarder (Brouillon) */}
+              <Button
+                type="submit"
+                variant="outline"
+                className="flex-1 sm:flex-none gap-2 border-slate-300"
+                onClick={() => setSubmitAction("save")}
+                disabled={isPending}
+              >
+                <Save className="w-4 h-4" />
+                <span className="sr-only sm:not-sr-only">
+                  {isEditMode ? "Sauver" : "Brouillon"}
+                </span>
+                <span className="sm:hidden">Sauver</span>
+              </Button>
+
+              {/* BOUTON 2 : Valider & PDF */}
+              <Button
+                type="submit"
+                className="flex-1 sm:flex-none gap-2 min-w-[140px]"
+                onClick={() => setSubmitAction("generate")}
+                disabled={isPending}
+              >
+                {isEditMode ? (
+                  <FileText className="w-4 h-4" />
+                ) : (
+                  <CheckCircle className="w-4 h-4" />
+                )}
+                <span>{isEditMode ? "Générer PDF" : "Créer & PDF"}</span>
+              </Button>
+            </div>
           </div>
         </div>
       </form>
