@@ -29,7 +29,7 @@ export default async function InvoicesPage() {
       <div className="flex justify-between items-center">
         <h1 className="text-xl font-bold">Factures</h1>
         <Button asChild size="sm">
-          <Link href="/invoices/new">
+          <Link href="/dashboard/invoices/new">
             <Plus className="mr-2 h-4 w-4" /> Créer
           </Link>
         </Button>
@@ -69,7 +69,7 @@ export default async function InvoicesPage() {
                   <TableRow key={invoice.id}>
                     <TableCell className="font-medium text-xs sm:text-sm">
                       <Link
-                        href={`/invoices/${invoice.id}`}
+                        href={`/dashboard/invoices/${invoice.id}`}
                         className="hover:underline"
                       >
                         {invoice.number}

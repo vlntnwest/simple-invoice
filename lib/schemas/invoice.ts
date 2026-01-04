@@ -28,3 +28,5 @@ export const createInvoiceSchema = z.object({
   items: z.array(invoiceItemSchema).min(1, "Ajoutez au moins une ligne"),
   note: z.string().optional(),
 });
+
+export type CreateInvoiceValues = z.infer<typeof createInvoiceSchema>;
