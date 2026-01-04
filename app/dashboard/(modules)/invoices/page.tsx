@@ -1,24 +1,15 @@
 import { getInvoices } from "@/app/actions/invoices";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Plus } from "lucide-react";
+import { ChevronRight, Plus } from "lucide-react";
 import Link from "next/link";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import { Separator } from "@/components/ui/separator";
 
-const statusStyles: Record<string, string> = {
-  DRAFT: "bg-slate-500",
-  SENT: "bg-blue-500",
-  PAID: "bg-green-500",
-  OVERDUE: "bg-red-500",
-  CANCELLED: "bg-slate-300",
+const STATEVALUES = {
+  DRAFT: "Brouillon",
+  PENDING: "En attente",
+  PAID: "Payé",
+  CANCELED: "Annulé",
 };
 
 export default async function InvoicesPage() {
@@ -35,58 +26,67 @@ export default async function InvoicesPage() {
         </Button>
       </div>
 
-      <div className="border rounded-md">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[90px]">N°</TableHead>
-              <TableHead>Client</TableHead>
-              <TableHead className="text-right">Total</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {invoices.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={4}
-                  className="text-center py-8 text-muted-foreground"
-                >
-                  Aucune facture pour le moment.
-                </TableCell>
-              </TableRow>
-            ) : (
-              invoices.map((invoice) => {
-                // Logique d'affichage du nom client (Entreprise ou Particulier)
-                const clientName =
-                  invoice.customer.companyName ||
-                  `${invoice.customer.firstName || ""} ${
-                    invoice.customer.lastName || ""
-                  }`.trim() ||
-                  "Client inconnu";
+      <ul className="flex flex-col border rounded-2xl bg-card overflow-hidden">
+        {invoices.map((invoice, index) => {
+          const clientName =
+            invoice.customer.companyName ||
+            `${invoice.customer.firstName || ""} ${
+              invoice.customer.lastName || ""
+            }`.trim() ||
+            "Client inconnu";
 
-                return (
-                  <TableRow key={invoice.id}>
-                    <TableCell className="font-medium text-xs sm:text-sm">
-                      <Link
-                        href={`/dashboard/invoices/${invoice.id}`}
-                        className="hover:underline"
-                      >
-                        {invoice.number}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-xs sm:text-sm truncate max-w-[120px]">
-                      {clientName}
-                    </TableCell>
-                    <TableCell className="text-right font-bold text-xs sm:text-sm">
-                      {formatCurrency(invoice.total / 100)}
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
-      </div>
+          return (
+            <li key={invoice.id}>
+              <Link
+                href={
+                  invoice.status === "DRAFT"
+                    ? `/dashboard/invoices/edit/${invoice.id}`
+                    : `/dashboard/invoices/${invoice.id}`
+                }
+                className="flex items-center w-full px-4 py-3 cursor-pointer"
+              >
+                <div className="flex justify-between w-full">
+                  <div className="flex-1 flex flex-col gap-1 items-start min-w-0">
+                    <div className="flex gap-1">
+                      <p className="text-base font-regular">{invoice.number}</p>
+                      <p className="text-base font-regular truncate">
+                        {clientName}
+                      </p>
+                    </div>
+                    <div className="flex items-center max-w-full">
+                      <span className="inline-flex items-center">
+                        <span className="text-base font-semibold after:content-['·'] after:mx-1">
+                          {
+                            STATEVALUES[
+                              invoice.status as keyof typeof STATEVALUES
+                            ]
+                          }
+                        </span>
+                        <p>{formatDate(invoice.date)}</p>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="ml-4 flex flex-col">
+                    <div className="flex items-center">
+                      <p className="font-semibold">
+                        {formatCurrency(invoice.total / 100)}
+                      </p>
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </div>
+                  </div>
+                </div>
+              </Link>
+
+              {index < invoices.length - 1 && (
+                <div className="px-4">
+                  <Separator />
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

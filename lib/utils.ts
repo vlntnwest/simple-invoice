@@ -11,3 +11,11 @@ export const formatCurrency = (value: number) => {
     currency: "EUR",
   }).format(value);
 };
+
+export function formatDate(date: Date | string | null | undefined) {
+  if (!date) return "-";
+  return new Date(date).toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "short",
+  });
+}

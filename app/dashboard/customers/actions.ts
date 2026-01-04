@@ -13,49 +13,55 @@ export type ActionState = {
   fieldErrors?: Record<string, string[]>;
 };
 
-const CustomerSchema = z
-  .object({
-    type: z.nativeEnum(CustomerType),
-    firstName: z.string().optional(),
-    lastName: z.string().optional(),
-    companyName: z.string().optional().nullable(),
-    vatNumber: z.string().optional().nullable(),
-    email: z
-      .string()
-      .min(1, "L'email est obligatoire")
-      .email("Format d'email invalide"),
-    phone: z.string().optional(),
-    address: z.string().optional(),
-    city: z.string().optional(),
-    zipCode: z.string().optional(),
-    country: z.string().optional(),
-  })
-  .superRefine((data, ctx) => {
-    if (
-      data.type === "COMPANY" &&
-      (!data.companyName || data.companyName.trim() === "")
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Le nom de l'entreprise est obligatoire",
-        path: ["companyName"],
-      });
-    }
-    if (
-      data.type === "INDIVIDUAL" &&
-      (!data.lastName || data.lastName.trim() === "")
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Le nom de famille est obligatoire",
-        path: ["lastName"],
-      });
-    }
-  });
-
-const UpdateCustomerSchema = CustomerSchema.extend({
-  id: z.string().min(1),
+// 1. On définit la structure de base (sans le superRefine)
+const BaseCustomerSchema = z.object({
+  type: z.nativeEnum(CustomerType),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  companyName: z.string().optional().nullable(),
+  vatNumber: z.string().optional().nullable(),
+  email: z
+    .string()
+    .min(1, "L'email est obligatoire")
+    .email("Format d'email invalide"),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  zipCode: z.string().optional(),
+  country: z.string().optional(),
 });
+
+// 2. On extrait la logique de validation métier pour la réutiliser
+const customerRefinement = (data: any, ctx: z.RefinementCtx) => {
+  if (
+    data.type === "COMPANY" &&
+    (!data.companyName || data.companyName.trim() === "")
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Le nom de l'entreprise est obligatoire",
+      path: ["companyName"],
+    });
+  }
+  if (
+    data.type === "INDIVIDUAL" &&
+    (!data.lastName || data.lastName.trim() === "")
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Le nom de famille est obligatoire",
+      path: ["lastName"],
+    });
+  }
+};
+
+// 3. Schéma pour la Création (Base + Refine)
+const CustomerSchema = BaseCustomerSchema.superRefine(customerRefinement);
+
+// 4. Schéma pour l'Update (Base + ID + Refine)
+const UpdateCustomerSchema = BaseCustomerSchema.extend({
+  id: z.string().min(1),
+}).superRefine(customerRefinement);
 
 export async function createCustomer(formData: FormData) {
   const { organization } = await getUserContext();

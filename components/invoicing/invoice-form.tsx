@@ -404,7 +404,7 @@ export function InvoiceForm({ customers }: Props) {
         </div>
 
         {/* BOTTOM BAR / TOTAUX */}
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t dark:bg-slate-950 z-10 md:relative md:bg-transparent md:border-t-0 md:p-0">
+        <div className="p-4 bg-white border-t dark:bg-slate-950 z-10 md:relative md:bg-transparent md:border-t-0 md:p-0">
           <div className="max-w-5xl mx-auto flex flex-col gap-3">
             <div className="flex justify-between items-center text-lg font-bold px-1">
               <span>Total Estimé TTC</span>
