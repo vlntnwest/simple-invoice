@@ -7,80 +7,99 @@ import {
   createInvoiceSchema,
   CreateInvoiceValues,
 } from "@/lib/schemas/invoice";
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { getUserWithOrg } from "@/lib/auth-helpers";
+import { redirect } from "next/navigation";
 
-export async function createInvoice(data: CreateInvoiceValues) {
-  const organizationId = await requireUserOrganization();
-  if (!organizationId) throw new Error("Organisation introuvable");
+function generateNextNumber(lastNumber: string | undefined): string {
+  if (!lastNumber) return "INV-001";
+  const match = lastNumber.match(/(\d+)$/);
+  if (!match) return "INV-001";
+  const numberPart = match[1];
+  const prefix = lastNumber.slice(0, -numberPart.length);
+  const nextNumber = parseInt(numberPart, 10) + 1;
+  return `${prefix}${nextNumber.toString().padStart(numberPart.length, "0")}`;
+}
 
-  // 1. Validation des données brutes
-  const validated = createInvoiceSchema.parse(data);
+export async function createInvoice(values: CreateInvoiceValues) {
+  // 1. Auth & Org
+  const user = await getUserWithOrg();
+  if (!user || !user.organizationId) {
+    throw new Error("Unauthorized");
+  }
 
-  // 2. Calculs Financiers Sécurisés (Côté Serveur)
-  // On calcule tout en centimes pour éviter les erreurs d'arrondi flottant
-  let subtotal = 0; // Total HT
-  let taxAmount = 0; // Total TVA
+  const validatedFields = createInvoiceSchema.parse(values);
 
-  const itemsData = validated.items.map((item) => {
+  // 2. Calculs de sécurité (Côté Serveur)
+  // On prépare les items pour prisma ET on calcule les totaux en même temps
+  let calculatedSubtotal = 0; // HT
+  let calculatedTax = 0; // TVA
+
+  const itemsToCreate = validatedFields.items.map((item) => {
+    // Conversion immédiate en centimes pour éviter les erreurs de float JS
     const priceInCents = Math.round(item.price * 100);
-    const lineTotalHT = priceInCents * item.quantity;
-    const lineTax = Math.round(lineTotalHT * (item.taxRate / 100));
+    const quantity = item.quantity;
+    const taxRate = item.taxRate;
 
-    subtotal += lineTotalHT;
-    taxAmount += lineTax;
+    // Calcul ligne par ligne
+    const lineSubtotal = priceInCents * quantity; // HT de la ligne
+    const lineTax = lineSubtotal * (taxRate / 100); // TVA de la ligne
+
+    // Accumulation
+    calculatedSubtotal += lineSubtotal;
+    calculatedTax += lineTax;
 
     return {
       description: item.description,
-      quantity: item.quantity,
+      details: item.details,
+      quantity: quantity,
+      unite: item.unite,
       price: priceInCents, // Stocké en centimes
-      taxRate: item.taxRate,
-      // Pas besoin de stocker le total ligne en DB selon ton schema,
-      // mais pratique pour les calculs ici.
+      taxRate: taxRate,
     };
   });
 
-  const total = subtotal + taxAmount; // Total TTC
+  // Arrondi final des totaux (pour avoir des entiers propres en DB)
+  const finalSubtotal = Math.round(calculatedSubtotal);
+  const finalTax = Math.round(calculatedTax);
+  const finalTotal = finalSubtotal + finalTax;
 
-  // 3. Création en Base (Transactionnelle implicite via create imbriqué)
-  // SECURITY: On force l'organizationId
-  const lastInvoice = await prisma.invoice.findFirst({
-    where: { organizationId },
-    orderBy: { createdAt: "desc" },
-    select: { number: true },
-  });
+  // 3. Numérotation (si vide)
+  let invoiceNumber = validatedFields.number;
+  if (!invoiceNumber || invoiceNumber.trim() === "") {
+    const lastInvoice = await prisma.invoice.findFirst({
+      where: { organizationId: user.organizationId },
+      orderBy: { createdAt: "desc" },
+      select: { number: true },
+    });
+    invoiceNumber = generateNextNumber(lastInvoice?.number);
+  }
 
-  // Génération basique de numéro (Ex: INV-001). À améliorer plus tard.
-  const nextNumber = lastInvoice
-    ? `INV-${String(
-        parseInt(lastInvoice.number.split("-")[1] || "0") + 1
-      ).padStart(3, "0")}`
-    : "INV-001";
-
-  await prisma.invoice.create({
+  // 4. Insertion DB avec les totaux calculés
+  const newInvoice = await prisma.invoice.create({
     data: {
-      organizationId,
-      customerId: validated.customerId,
-      number: nextNumber,
-      status: validated.status,
-      date: validated.date,
-      dueDate: validated.dueDate,
-      note: validated.note,
+      organizationId: user.organizationId,
+      number: invoiceNumber,
+      customerId: validatedFields.customerId,
+      date: validatedFields.date,
+      dueDate: validatedFields.dueDate,
+      status: validatedFields.status,
+      note: validatedFields.note,
 
-      // Totaux calculés
-      subtotal,
-      tax: taxAmount,
-      total,
+      // Les champs que tu as ajoutés au modèle :
+      subtotal: finalSubtotal,
+      tax: finalTax,
+      total: finalTotal,
 
-      // Création des lignes
       items: {
-        create: itemsData,
+        create: itemsToCreate,
       },
     },
   });
 
+  // 5. Revalidate & Redirect
   revalidatePath("/dashboard/invoices");
-  redirect("/dashboard/invoices");
+  return { success: true, id: newInvoice.id };
 }
 
 export async function getInvoices() {

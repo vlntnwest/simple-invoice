@@ -20,13 +20,21 @@ export const invoiceItemSchema = z.object({
 });
 
 // Schema complet pour la création
-export const createInvoiceSchema = z.object({
-  customerId: z.string().min(1, "Client requis"),
-  date: z.date(),
-  dueDate: z.date(),
-  status: invoiceStatusSchema.default("DRAFT"),
-  items: z.array(invoiceItemSchema).min(1, "Ajoutez au moins une ligne"),
-  note: z.string().optional(),
-});
+export const createInvoiceSchema = z
+  .object({
+    number: z.string().optional().or(z.literal("")),
+
+    customerId: z.string().min(1, "Client requis"),
+    date: z.date(),
+    dueDate: z.date(),
+    status: invoiceStatusSchema.default("DRAFT"),
+    items: z.array(invoiceItemSchema).min(1, "Ajoutez au moins une ligne"),
+    note: z.string().optional(),
+  })
+  .refine((data) => data.dueDate >= data.date, {
+    message:
+      "La date d'échéance doit être postérieure à la date de facturation",
+    path: ["dueDate"],
+  });
 
 export type CreateInvoiceValues = z.infer<typeof createInvoiceSchema>;

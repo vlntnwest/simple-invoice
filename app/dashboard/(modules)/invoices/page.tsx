@@ -42,7 +42,6 @@ export default async function InvoicesPage() {
               <TableHead className="w-[90px]">N°</TableHead>
               <TableHead>Client</TableHead>
               <TableHead className="text-right">Total</TableHead>
-              <TableHead className="w-[80px] text-center">État</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -80,15 +79,6 @@ export default async function InvoicesPage() {
                     </TableCell>
                     <TableCell className="text-right font-bold text-xs sm:text-sm">
                       {formatCurrency(invoice.total / 100)}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge
-                        className={`${
-                          statusStyles[invoice.status]
-                        } text-[10px] px-2 py-0.5 border-0 text-white hover:bg-opacity-80 whitespace-nowrap`}
-                      >
-                        {invoice.status}
-                      </Badge>
                     </TableCell>
                   </TableRow>
                 );
