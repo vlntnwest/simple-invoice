@@ -29,12 +29,14 @@ export default async function NewInvoicePage() {
   }));
 
   return (
-    <div className="w-full max-w-4xl mx-auto p-4">
+    <div className="w-full p-4">
       <div className="flex items-center space-x-2 mb-4">
         <ReturnArrow />
         <h1 className="text-2xl font-bold tracking-tight">Nouvelle Facture</h1>
       </div>
-      <InvoiceForm customers={formattedCustomers} />
+      <div className="max-w-4xl mx-auto">
+        <InvoiceForm customers={formattedCustomers} />
+      </div>
     </div>
   );
 }

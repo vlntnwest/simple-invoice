@@ -55,7 +55,9 @@ export default async function EditInvoicePage({ params }: PageProps) {
         <DeleteBtn invoiceId={id} />
       </div>
       {/* On passe la facture et les clients au formulaire */}
-      <InvoiceForm invoice={invoice} customers={formattedCustomers} />
+      <div className="max-w-4xl mx-auto">
+        <InvoiceForm invoice={invoice} customers={formattedCustomers} />
+      </div>
     </div>
   );
 }
