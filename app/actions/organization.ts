@@ -122,6 +122,4 @@ export async function switchOrganization(orgId: string) {
   // 2. Set Cookie
   const cookieStore = await cookies();
   cookieStore.set("current_org_id", orgId, { path: "/", maxAge: 31536000 });
-
-  redirect("/dashboard");
 }
