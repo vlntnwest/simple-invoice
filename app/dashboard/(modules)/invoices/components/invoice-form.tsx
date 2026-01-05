@@ -410,6 +410,33 @@ export function InvoiceForm({ invoice, customers }: Props) {
                       )}
                     />
                   </div>
+
+                  {/* Ligne 7 : Discount */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField
+                      control={form.control}
+                      name={`items.${index}.discount`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs font-semibold uppercase text-slate-500">
+                            Remise (%)
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              max="100"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(parseFloat(e.target.value) || 0)
+                              }
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
                 <Button
                   type="button"
