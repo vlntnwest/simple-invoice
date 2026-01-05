@@ -182,7 +182,7 @@ model InvoiceItem {
   discount    Int     @default(0)
   
   price       Int     // Prix unitaire HT en CENTS
-taxRate      Float @default(20.0)
+  taxRate      Float @default(20.0)
   invoiceId String
   invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 }

@@ -1,15 +1,14 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { requireUserOrganization } from "@/lib/context/organization";
-import { createClient } from "@/lib/supabase/server";
 import {
   createInvoiceSchema,
   CreateInvoiceValues,
-} from "@/lib/schemas/invoice";
+} from "@/app/dashboard/(modules)/invoices/lib/schemas/invoice";
 import { revalidatePath } from "next/cache";
-import { getUserWithOrg } from "@/lib/auth-helpers";
 import { getUserContext } from "@/lib/context/context";
+import { invoiceEvents } from "../lib/events/invoice-events";
+import { requireUserOrganization } from "@/lib/context/organization";
 
 // --- HELPERS METIER ---
 
@@ -24,8 +23,8 @@ function generateNextNumber(lastNumber: string | undefined): string {
 }
 
 function calculateInvoiceTotals(items: CreateInvoiceValues["items"]) {
-  let subtotalCents = 0; // Total HT après remise
-  let totalTaxCents = 0; // Total TVA
+  let subtotalCents = 0;
+  let totalTaxCents = 0;
 
   const preparedItems = items.map((item) => {
     const priceCents = Math.round(item.price * 100);
@@ -33,19 +32,11 @@ function calculateInvoiceTotals(items: CreateInvoiceValues["items"]) {
     const taxRate = item.taxRate;
     const discountPercent = item.discount || 0;
 
-    // 1. Total brut de la ligne
     const lineGrossCents = priceCents * quantity;
-
-    // 2. Montant de la remise
     const discountAmountCents = lineGrossCents * (discountPercent / 100);
-
-    // 3. Total HT de la ligne (Base imposable)
     const lineNetCents = lineGrossCents - discountAmountCents;
-
-    // 4. Montant TVA
     const lineTaxCents = lineNetCents * (taxRate / 100);
 
-    // Accumulation
     subtotalCents += lineNetCents;
     totalTaxCents += lineTaxCents;
 
@@ -56,7 +47,7 @@ function calculateInvoiceTotals(items: CreateInvoiceValues["items"]) {
       unite: item.unite,
       price: priceCents,
       taxRate: taxRate,
-      discount: discountPercent, // IMPORTANT : On stocke la remise
+      discount: discountPercent,
     };
   });
 
@@ -71,49 +62,46 @@ function calculateInvoiceTotals(items: CreateInvoiceValues["items"]) {
 // --- ACTIONS ---
 
 export async function createInvoice(values: CreateInvoiceValues) {
-  // 1. Auth & Org
-  const user = await getUserWithOrg();
-  if (!user || !user.organizationId) {
-    throw new Error("Unauthorized");
-  }
+  const { organization } = await getUserContext();
+  if (!organization) throw new Error("Unauthorized");
 
   const validatedFields = createInvoiceSchema.parse(values);
-
-  // 2. Calculs (Centralisés)
   const calculation = calculateInvoiceTotals(validatedFields.items);
 
-  // 3. Numérotation (si vide)
+  // Génération du numéro si absent
   let invoiceNumber = validatedFields.number;
   if (!invoiceNumber || invoiceNumber.trim() === "") {
     const lastInvoice = await prisma.invoice.findFirst({
-      where: { organizationId: user.organizationId },
+      where: { organizationId: organization.id },
       orderBy: { createdAt: "desc" },
       select: { number: true },
     });
     invoiceNumber = generateNextNumber(lastInvoice?.number);
   }
 
-  // 4. Insertion DB
+  // 1. Création en base
   const newInvoice = await prisma.invoice.create({
     data: {
-      organizationId: user.organizationId,
+      organizationId: organization.id,
       number: invoiceNumber,
       customerId: validatedFields.customerId,
       date: validatedFields.date,
       dueDate: validatedFields.dueDate,
       status: validatedFields.status,
       note: validatedFields.note,
-
-      // Totaux calculés
       subtotal: calculation.subtotal,
       tax: calculation.tax,
       total: calculation.total,
-
       items: {
         create: calculation.items,
       },
     },
   });
+
+  // 2. TRIGGER : Si créé directement en SENT, on déclenche les events (PDF, Email...)
+  if (newInvoice.status === "SENT") {
+    await invoiceEvents.onValidate(newInvoice.id);
+  }
 
   revalidatePath("/dashboard/invoices");
   return { success: true, id: newInvoice.id };
@@ -127,31 +115,20 @@ export async function updateInvoice(
   if (!organization) return { error: "Non autorisé" };
 
   const validated = createInvoiceSchema.safeParse(data);
-  if (!validated.success) {
-    return {
-      error: "Données invalides",
-      fieldErrors: validated.error.flatten().fieldErrors,
-    };
-  }
+  if (!validated.success) return { error: "Données invalides" };
 
   const { customerId, date, dueDate, status, number, items } = validated.data;
-
-  // 1. Calculs (Réutilisation de la même logique que Create)
   const calculation = calculateInvoiceTotals(items);
 
   try {
-    await prisma.$transaction(async (tx) => {
-      // Vérification sécurité
-      const existingInvoice = await tx.invoice.findFirst({
+    const updatedInvoice = await prisma.$transaction(async (tx) => {
+      const existing = await tx.invoice.findFirst({
         where: { id: invoiceId, organizationId: organization.id },
       });
+      if (!existing) throw new Error("Facture introuvable");
 
-      if (!existingInvoice) {
-        throw new Error("Facture introuvable ou accès refusé.");
-      }
-
-      // Update Header
-      await tx.invoice.update({
+      // Mise à jour des infos
+      const inv = await tx.invoice.update({
         where: { id: invoiceId },
         data: {
           customerId,
@@ -165,29 +142,27 @@ export async function updateInvoice(
         },
       });
 
-      // Update Items (Delete + Recreate pattern)
-      await tx.invoiceItem.deleteMany({
-        where: { invoiceId: invoiceId },
-      });
-
+      // Remplacement des items (Delete + Create)
+      await tx.invoiceItem.deleteMany({ where: { invoiceId } });
       if (calculation.items.length > 0) {
         await tx.invoiceItem.createMany({
-          data: calculation.items.map((item) => ({
-            ...item,
-            invoiceId: invoiceId,
-          })),
+          data: calculation.items.map((item) => ({ ...item, invoiceId })),
         });
       }
+      return inv;
     });
+
+    // 2. TRIGGER : Si le statut est passé à SENT, on déclenche les events
+    if (updatedInvoice.status === "SENT") {
+      await invoiceEvents.onValidate(updatedInvoice.id);
+    }
 
     revalidatePath("/dashboard/invoices");
     revalidatePath(`/dashboard/invoices/edit/${invoiceId}`);
-    return { success: true };
-  } catch (error: any) {
+    return { success: true, id: invoiceId };
+  } catch (error) {
     console.error("Erreur updateInvoice:", error);
-    return {
-      error: "Erreur technique lors de la mise à jour.",
-    };
+    return { error: "Erreur technique lors de la mise à jour." };
   }
 }
 
@@ -196,18 +171,13 @@ export async function deleteInvoice(id: string): Promise<ActionState> {
   if (!organization) return { error: "Non autorisé" };
 
   try {
-    // Vérification stricte via organizationId
     const count = await prisma.invoice.count({
       where: { id, organizationId: organization.id },
     });
 
-    if (count === 0) {
-      return { error: "Facture introuvable ou accès refusé" };
-    }
+    if (count === 0) return { error: "Facture introuvable" };
 
-    await prisma.invoice.delete({
-      where: { id },
-    });
+    await prisma.invoice.delete({ where: { id } });
 
     revalidatePath("/dashboard/invoices");
     return { success: true };
@@ -217,31 +187,43 @@ export async function deleteInvoice(id: string): Promise<ActionState> {
   }
 }
 
+// Action rapide (pour les boutons "Valider" dans les listes/tableaux)
+export async function validateInvoice(invoiceId: string): Promise<ActionState> {
+  const { organization } = await getUserContext();
+  if (!organization) return { error: "Non autorisé" };
+
+  try {
+    const updatedInvoice = await prisma.invoice.update({
+      where: { id: invoiceId, organizationId: organization.id },
+      data: { status: "SENT" },
+    });
+
+    // TRIGGER via le bouton dédié aussi
+    await invoiceEvents.onValidate(updatedInvoice.id);
+
+    revalidatePath("/dashboard/invoices");
+    return { success: true, id: invoiceId };
+  } catch (error) {
+    return { error: "Impossible de valider la facture." };
+  }
+}
+
 export async function getInvoices() {
   const organizationId = await requireUserOrganization();
   if (!organizationId) return [];
 
-  // SECURITY: Multi-tenant filter
   return await prisma.invoice.findMany({
-    where: {
-      organizationId: organizationId,
-    },
+    where: { organizationId },
     include: {
       customer: {
-        select: {
-          companyName: true,
-          firstName: true,
-          lastName: true,
-        },
+        select: { companyName: true, firstName: true, lastName: true },
       },
     },
-    orderBy: {
-      createdAt: "desc",
-    },
+    orderBy: { createdAt: "desc" },
   });
 }
 
-// Type export
+// Types
 export type ActionState = {
   success?: boolean;
   error?: string | null;

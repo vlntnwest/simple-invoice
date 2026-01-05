@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   CreateInvoiceValues,
   createInvoiceSchema,
-} from "@/lib/schemas/invoice";
+} from "@/app/dashboard/(modules)/invoices/lib/schemas/invoice";
 import {
   ActionState,
   createInvoice,

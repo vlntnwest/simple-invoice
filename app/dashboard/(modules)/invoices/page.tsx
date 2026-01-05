@@ -35,9 +35,6 @@ export default async function InvoicesPage() {
                 invoice.customer.lastName || ""
               }`.trim() ||
               "Client inconnu";
-
-            console.log("Invoice:", invoice);
-
             return (
               <li key={invoice.id}>
                 <Link
