@@ -41,7 +41,7 @@ export default async function InvoicesPage() {
                   href={
                     invoice.status === "DRAFT"
                       ? `/dashboard/invoices/edit/${invoice.id}`
-                      : `/dashboard/invoices/${invoice.id}`
+                      : `/dashboard/invoices/view/${invoice.id}`
                   }
                   className="flex items-center w-full px-4 py-3 cursor-pointer"
                 >
