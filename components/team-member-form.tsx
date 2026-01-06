@@ -78,7 +78,6 @@ export function TeamMemberForm({ children }: { children?: React.ReactNode }) {
   );
 }
 
-// ... Le reste du fichier (MemberFormContent) reste inchangé
 function MemberFormContent({
   setOpen,
   isDrawer,
@@ -86,7 +85,6 @@ function MemberFormContent({
   setOpen: (o: boolean) => void;
   isDrawer: boolean;
 }) {
-  // ... (Garde le même code que je t'ai donné précédemment pour le contenu du formulaire)
   const [isLoading, setIsLoading] = useState(false);
 
   async function handleSubmit(formData: FormData) {

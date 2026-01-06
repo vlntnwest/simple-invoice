@@ -4,14 +4,7 @@ import { ChevronRight, Plus } from "lucide-react";
 import Link from "next/link";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
-
-const STATEVALUES = {
-  DRAFT: "Brouillon",
-  SENT: "Envoyée",
-  PAID: "Payé",
-  OVERDUE: "En retard",
-  CANCELED: "Annulé",
-};
+import { STATEVALUES } from "./config/states";
 
 export default async function InvoicesPage() {
   const invoices = await getInvoices();
