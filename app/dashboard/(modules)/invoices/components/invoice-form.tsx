@@ -64,6 +64,7 @@ export function InvoiceForm({ invoice, customers }: Props) {
     date: invoice?.date ? new Date(invoice.date) : new Date(),
     dueDate: invoice?.dueDate ? new Date(invoice.dueDate) : undefined,
     status: invoice?.status ?? "DRAFT",
+    note: invoice?.note ?? "",
     items: invoice?.items
       ? invoice.items.map((item) => ({
           description: item.description,
@@ -301,7 +302,7 @@ export function InvoiceForm({ invoice, customers }: Props) {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-xs font-semibold uppercase text-slate-500">
-                            Description
+                            Détails
                           </FormLabel>
                           <FormControl>
                             <Textarea
@@ -470,6 +471,25 @@ export function InvoiceForm({ invoice, customers }: Props) {
             </Button>
           </div>
         </div>
+
+        <FormField
+          control={form.control}
+          name={`note`}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-xs font-semibold uppercase text-slate-500">
+                Notes
+              </FormLabel>
+              <FormControl>
+                <Textarea
+                  {...field}
+                  placeholder="Notes..."
+                  className="h-20 resize-none text-sm"
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
 
         {/* BOTTOM BAR */}
         <div className="p-4 bg-white border-t dark:bg-slate-950 z-10 md:relative md:bg-transparent md:border-t-0 md:p-0">

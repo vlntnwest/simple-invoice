@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import {
   createInvoiceSchema,
   CreateInvoiceValues,
-} from "@/app/dashboard/(modules)/invoices/lib/schemas/invoice";
+} from "../lib/schemas/invoice";
 import { revalidatePath } from "next/cache";
 import { getUserContext } from "@/lib/context/context";
 import { invoiceEvents } from "../lib/events/invoice-events";
@@ -117,7 +117,8 @@ export async function updateInvoice(
   const validated = createInvoiceSchema.safeParse(data);
   if (!validated.success) return { error: "Données invalides" };
 
-  const { customerId, date, dueDate, status, number, items } = validated.data;
+  const { customerId, date, dueDate, status, number, items, note } =
+    validated.data;
   const calculation = calculateInvoiceTotals(items);
 
   try {
@@ -136,6 +137,7 @@ export async function updateInvoice(
           date,
           dueDate,
           status,
+          note,
           subtotal: calculation.subtotal,
           tax: calculation.tax,
           total: calculation.total,

@@ -1,5 +1,4 @@
 /* eslint-disable jsx-a11y/alt-text */
-import React from "react";
 import {
   Page,
   Text,
@@ -13,160 +12,168 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Invoice, InvoiceItem, Customer, Organization } from "@prisma/client";
 
-// Enregistrement de la police Helvetica (Standard PDF)
+// --- CONFIGURATION DES POLICES ---
 Font.register({
   family: "Helvetica",
   fonts: [
-    { src: "https://fonts.gstatic.com/s/helveticaneue/v1/1.ttf" }, // Regular
+    { src: "https://fonts.gstatic.com/s/helveticaneue/v1/1.ttf" },
     {
       src: "https://fonts.gstatic.com/s/helveticaneue/v1/2.ttf",
       fontWeight: "bold",
-    }, // Bold
+    },
   ],
 });
 
+// --- STYLES SÉMANTIQUES ---
 const styles = StyleSheet.create({
-  page: {
-    padding: 40,
+  // Layout Global
+  pageLayout: {
+    paddingHorizontal: 40,
+    paddingVertical: 60,
     fontSize: 10,
     fontFamily: "Helvetica",
     color: "#000",
     lineHeight: 1.4,
   },
-  // --- HEADER ---
-  header: {
+
+  // Section : En-tête (Logo & Émetteur)
+  sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 40,
+    marginBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e2e8f0",
   },
-  headerLeft: {
+  headerBrandColumn: {
     flexDirection: "column",
     width: "50%",
   },
-  logoPlaceholder: {
+  headerIssuerColumn: {
+    width: "40%",
+    alignItems: "flex-end",
+  },
+  brandLogoPlaceholder: {
     fontSize: 20,
     fontWeight: "bold",
     textTransform: "uppercase",
     marginBottom: 10,
   },
-  headerRight: {
-    width: "40%",
-    alignItems: "flex-start", // Le modèle aligne le texte à gauche dans le bloc de droite
-  },
-  titleBlock: {
+  issuerDetailsBlock: {
     marginBottom: 10,
   },
-  invoiceTitle: {
-    fontSize: 14,
-    fontWeight: "bold",
-  },
-  dateRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 2,
-  },
-
-  // --- ADRESSES ---
-  addressBlock: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 10,
-    marginBottom: 40,
-  },
-  senderBlock: {
-    width: "45%",
-  },
-  recipientBlock: {
-    width: "45%",
-    marginTop: 20, // Léger décalage vers le bas comme sur le modèle
-  },
-  recipientLabel: {
-    fontSize: 10,
-    marginBottom: 5,
-  },
-  recipientName: {
-    fontSize: 11,
+  documentTitle: {
     fontWeight: "bold",
   },
 
-  // --- TABLEAU ---
-  table: {
-    width: "100%",
+  // Section : Adresses & Meta
+  sectionAddresses: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 20,
-  },
-  tableHeader: {
-    flexDirection: "row",
+    paddingBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#000",
-    paddingBottom: 5,
-    marginBottom: 5,
+    borderBottomColor: "#e2e8f0",
   },
-  tableRow: {
-    flexDirection: "row",
-    paddingVertical: 5,
+  addressClientColumn: {
+    width: "45%",
   },
-  // Colonnes
-  colDesc: { width: "55%" },
-  colQty: { width: "10%", textAlign: "center" },
-  colPrice: { width: "15%", textAlign: "right" },
-  colTotal: { width: "20%", textAlign: "right" },
 
-  // Font styles pour le tableau
-  th: {
-    fontSize: 9,
-    fontWeight: "bold",
-    textTransform: "uppercase",
+  // Section : Tableau
+  tableContainer: {
+    width: "100%",
+    marginBottom: 10,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e2e8f0",
   },
-  td: {
+  tableRowHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e2e8f0",
+    paddingBottom: 15,
+    marginBottom: 10,
+  },
+  tableRowItem: {
+    flexDirection: "row",
+    paddingVertical: 10,
+  },
+
+  // Cellules & Colonnes Tableau
+  tableCellHeader: {
+    fontSize: 10,
+    fontWeight: "bold",
+  },
+  tableCell: {
     fontSize: 10,
   },
+  colDescription: { width: "45%" },
+  colQuantity: { width: "16,67%", textAlign: "center" },
+  colUnit: { width: "16,67%", textAlign: "center" },
+  colUnitPrice: { width: "16,67%", textAlign: "center" },
+  colDiscount: { width: "16,67%", textAlign: "center" },
+  colTax: { width: "16,67%", textAlign: "center" },
+  colAmount: { width: "16,67%", textAlign: "right" },
 
-  // --- TOTAUX ---
-  totalsContainer: {
+  // Section : Totaux
+  sectionSummary: {
     flexDirection: "row",
     justifyContent: "flex-end",
-    marginTop: 10,
   },
-  totalsBox: {
+  summaryBlock: {
     width: "40%",
   },
-  totalRow: {
+  summaryRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 3,
+    paddingVertical: 10,
   },
-  totalRowFinal: {
+  summaryRowTotal: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 5,
-    marginTop: 5,
+    paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: "#000",
+    borderTopColor: "#e2e8f0",
   },
-  totalLabel: {
+  summaryLabel: {
     fontSize: 10,
   },
-  totalValue: {
+  summaryValue: {
     fontSize: 10,
     fontWeight: "bold",
     textAlign: "right",
   },
 
-  // --- FOOTER ---
-  footer: {
+  // Section : Notes
+  sectionNotes: {
+    marginTop: 20,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#f7fafc",
+  },
+
+  // Section : Pied de page (Legal)
+  sectionFooter: {
     position: "absolute",
-    bottom: 30,
+    bottom: 60,
     left: 40,
     right: 40,
-    textAlign: "center",
-    borderTopWidth: 1,
-    borderTopColor: "#EEE",
-    paddingTop: 10,
+    textAlign: "left",
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
-  footerText: {
-    fontSize: 8,
-    color: "#444",
+  footerLegalText: {
     marginBottom: 2,
+  },
+
+  // Overlay Pagination
+  paginationOverlay: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-end",
+    justifyContent: "flex-end",
+    width: "50%",
   },
 });
 
@@ -191,173 +198,228 @@ export const InvoicePDF = ({ invoice }: Props) => {
     format(new Date(date), "d MMMM yyyy", { locale: fr });
 
   return (
-    <Document>
-      <Page size="A4" style={styles.page}>
+    <Document language="fr">
+      <Page size="A4" style={styles.pageLayout} wrap>
         {/* --- EN-TÊTE --- */}
-        <View style={styles.header}>
-          {/* Bloc Gauche : Logo & Nom Organisation */}
-          <View style={styles.headerLeft}>
-            {org.logoLink ? (
-              <Image
-                src={org.logoLink}
-                style={{
-                  width: 80,
-                  height: 80,
-                  objectFit: "contain",
-                  marginBottom: 10,
-                }}
-              />
-            ) : (
-              // Fallback textuel style "Péché d'Alsace"
-              <Text style={styles.logoPlaceholder}>{org.name}</Text>
-            )}
-            <Text
-              style={{
-                fontSize: 10,
-                fontWeight: "bold",
-                textTransform: "uppercase",
-              }}
-            >
-              ÉPICERIE FINE
-            </Text>
-          </View>
-
-          {/* Bloc Droite : Infos Facture */}
-          <View style={styles.headerRight}>
-            <View style={styles.titleBlock}>
-              <Text style={styles.invoiceTitle}>
-                Facture : {invoice.number}
-              </Text>
-            </View>
-            <Text>Date de facture : {formatDate(invoice.date)}</Text>
-            <Text>Date d'échéance : {formatDate(invoice.dueDate)}</Text>
-          </View>
-        </View>
-
-        {/* --- ADRESSES --- */}
-        <View style={styles.addressBlock}>
-          {/* Expéditeur */}
-          <View style={styles.senderBlock}>
-            <Text style={{ fontWeight: "bold", marginBottom: 2 }}>
-              {org.name}
-            </Text>
-            <Text>{org.address}</Text>
-            <Text>
-              {org.zipCode} {org.city}
-            </Text>
-            {org.country !== "France" && <Text>{org.country}</Text>}
-          </View>
-
-          {/* Destinataire */}
-          <View style={styles.recipientBlock}>
-            <Text style={{ marginBottom: 4 }}>
-              {org.city}, le {formatDate(invoice.date)}
-            </Text>
-            <Text style={styles.recipientLabel}>Facture pour :</Text>
-            <Text style={styles.recipientName}>
-              {client.companyName || `${client.firstName} ${client.lastName}`}
-            </Text>
-            <Text>{client.address}</Text>
-            <Text>
-              {client.zipCode} {client.city}
-            </Text>
-
-            <View style={{ marginTop: 8 }}>
-              {/* Affichage conditionnel SIRET/TVA Client */}
-              {client.vatNumber && (
-                <Text style={{ fontSize: 9 }}>N°TVA: {client.vatNumber}</Text>
+        <View fixed>
+          {/* Bloc Header Principal */}
+          <View style={styles.sectionHeader}>
+            <View style={styles.headerBrandColumn}>
+              {org.logoLink ? (
+                <Image
+                  src={org.logoLink}
+                  style={{
+                    width: 80,
+                    height: 80,
+                    objectFit: "contain",
+                    marginBottom: 10,
+                  }}
+                />
+              ) : (
+                <Text style={styles.brandLogoPlaceholder}>{org.name}</Text>
               )}
             </View>
-          </View>
-        </View>
 
-        {/* --- INFOS LÉGALES INTERMÉDIAIRES (Optionnel, comme sur ton PDF au milieu) --- */}
-        <View style={{ marginBottom: 20 }}>
-          <Text style={{ fontSize: 9 }}>SIRET: {org.siret}</Text>
-          <Text style={{ fontSize: 9 }}>N°TVA: {org.vatNumber}</Text>
+            <View style={styles.headerIssuerColumn}>
+              <View style={styles.issuerDetailsBlock}>
+                {org.logoLink && (
+                  <Text style={styles.documentTitle}>{org.name}</Text>
+                )}
+                {org.address && (
+                  <Text>
+                    {org.address}{" "}
+                    {(org.zipCode || org.city) &&
+                      ` - ${org.zipCode || ""} ${org.city || ""}`}
+                  </Text>
+                )}
+                {org.siret && <Text>n°SIREN / SIRET : {org.siret}</Text>}
+                {org.vatNumber && <Text>n°TVA : {org.vatNumber}</Text>}
+                {org.email && <Text>Email : {org.email}</Text>}
+                {org.phone && <Text>Téléphone : {org.phone}</Text>}
+              </View>
+            </View>
+          </View>
+
+          {/* Bloc Adresses & Details */}
+          <View style={styles.sectionAddresses}>
+            <View>
+              <Text>Detinataire :</Text>
+            </View>
+            <View style={styles.addressClientColumn}>
+              <Text>
+                {client.companyName || `${client.firstName} ${client.lastName}`}
+              </Text>
+              <Text>{client.address}</Text>
+              <Text>
+                {client.zipCode} {client.city}
+              </Text>
+              <Text>{client.country}</Text>
+
+              <View style={{ marginTop: 8 }}>
+                {client.vatNumber && (
+                  <Text style={{ fontSize: 9 }}>N°TVA: {client.vatNumber}</Text>
+                )}
+              </View>
+            </View>
+            <View style={{ flexDirection: "column", alignItems: "flex-start" }}>
+              <Text style={styles.documentTitle}>Facture :</Text>
+              <Text>Date de facture :</Text>
+              <Text>Date d'échéance :</Text>
+            </View>
+            <View style={{ flexDirection: "column", alignItems: "flex-end" }}>
+              <Text>{invoice.number}</Text>
+              <Text>{formatDate(invoice.date)}</Text>
+              <Text>{formatDate(invoice.dueDate)}</Text>
+            </View>
+          </View>
         </View>
 
         {/* --- TABLEAU --- */}
-        <View style={styles.table}>
+        <View style={styles.tableContainer}>
           {/* Header */}
-          <View style={styles.tableHeader}>
-            <Text style={[styles.th, styles.colDesc]}>Description</Text>
-            <Text style={[styles.th, styles.colQty]}>Qté</Text>
-            <Text style={[styles.th, styles.colPrice]}>P.U. HT</Text>
-            <Text style={[styles.th, styles.colTotal]}>Montant HT</Text>
+          <View style={styles.tableRowHeader}>
+            <Text style={[styles.tableCellHeader, styles.colDescription]}>
+              Description
+            </Text>
+            <View
+              style={{ width: "55%", display: "flex", flexDirection: "row" }}
+            >
+              <Text style={[styles.tableCellHeader, styles.colQuantity]}>
+                Qté
+              </Text>
+              <Text style={[styles.tableCellHeader, styles.colUnit]}>
+                Unité
+              </Text>
+              <Text style={[styles.tableCellHeader, styles.colUnitPrice]}>
+                Prix
+              </Text>
+              {invoice.items.some((item) => item.discount > 0) && (
+                <Text style={[styles.tableCellHeader, styles.colDiscount]}>
+                  Remise
+                </Text>
+              )}
+              <Text style={[styles.tableCellHeader, styles.colTax]}>TVA</Text>
+              <Text style={[styles.tableCellHeader, styles.colAmount]}>
+                Montant
+              </Text>
+            </View>
           </View>
 
           {/* Lignes */}
-          {invoice.items.map((item, index) => (
-            <View key={item.id} style={styles.tableRow}>
-              <View style={styles.colDesc}>
-                <Text style={styles.td}>{item.description}</Text>
+          {invoice.items.map((item) => (
+            <View key={item.id} style={styles.tableRowItem}>
+              <View style={styles.colDescription}>
+                <Text style={styles.tableCell}>{item.description}</Text>
                 {item.details && (
                   <Text style={{ fontSize: 8, color: "#555", marginTop: 2 }}>
                     {item.details}
                   </Text>
                 )}
               </View>
-              <Text style={[styles.td, styles.colQty]}>{item.quantity}</Text>
-              <Text style={[styles.td, styles.colPrice]}>
-                {formatPrice(item.price)}
-              </Text>
-              <Text style={[styles.td, styles.colTotal]}>
-                {formatPrice(item.price * item.quantity)}
-              </Text>
+              <View
+                style={{ width: "55%", display: "flex", flexDirection: "row" }}
+              >
+                <Text style={[styles.tableCell, styles.colQuantity]}>
+                  {item.quantity}
+                </Text>
+                <Text style={[styles.tableCell, styles.colUnit]}>
+                  {item.unite}
+                </Text>
+                <Text style={[styles.tableCell, styles.colUnitPrice]}>
+                  {formatPrice(item.price)}
+                </Text>
+                {invoice.items.some((item) => item.discount > 0) && (
+                  <Text style={[styles.tableCell, styles.colDiscount]}>
+                    {item.discount}%
+                  </Text>
+                )}
+                <Text style={[styles.tableCell, styles.colTax]}>
+                  {item.taxRate}%
+                </Text>
+                <Text style={[styles.tableCell, styles.colAmount]}>
+                  {formatPrice(
+                    item.price * item.quantity * (1 - item.discount / 100)
+                  )}
+                </Text>
+              </View>
             </View>
           ))}
         </View>
 
         {/* --- TOTAUX --- */}
-        <View style={styles.totalsContainer}>
-          <View style={styles.totalsBox}>
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Sous-total</Text>
-              <Text style={styles.totalValue}>
+        <View style={styles.sectionSummary}>
+          <View style={styles.summaryBlock}>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Sous-total HT</Text>
+              <Text style={styles.summaryValue}>
                 {formatPrice(invoice.subtotal)}
               </Text>
             </View>
 
-            <View style={styles.totalRow}>
-              {/* On assume un taux moyen ou on affiche "TVA" générique si plusieurs taux */}
-              <Text style={styles.totalLabel}>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>
                 TVA ({((invoice.tax / invoice.subtotal) * 100).toFixed(1)}%)
               </Text>
-              <Text style={styles.totalValue}>{formatPrice(invoice.tax)}</Text>
+              <Text style={styles.summaryValue}>
+                {formatPrice(invoice.tax)}
+              </Text>
             </View>
 
-            <View style={styles.totalRowFinal}>
-              <Text style={[styles.totalLabel, { fontWeight: "bold" }]}>
-                Total T.T.C
+            <View style={styles.summaryRowTotal}>
+              <Text style={[styles.summaryLabel, { fontWeight: "bold" }]}>
+                Montant Total EUR
               </Text>
-              <Text style={[styles.totalValue, { fontSize: 12 }]}>
+              <Text style={[styles.summaryValue, { fontSize: 12 }]}>
                 {formatPrice(invoice.total)}
               </Text>
             </View>
           </View>
         </View>
 
+        {/* --- NOTES --- */}
+        {invoice.note && (
+          <View style={styles.sectionNotes} wrap={false}>
+            <Text style={{ fontStyle: "italic", color: "#718096" }}>
+              {invoice.note}
+            </Text>
+          </View>
+        )}
+
         {/* --- PIED DE PAGE --- */}
-        <View style={styles.footer}>
-          <Text
-            style={[
-              styles.footerText,
-              { textTransform: "uppercase", fontWeight: "bold" },
-            ]}
+        <View style={styles.sectionFooter} fixed>
+          <View
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              position: "absolute",
+              top: -50,
+              left: 0,
+              right: 0,
+              borderTopWidth: 1,
+              borderTopColor: "#EEE",
+              paddingTop: 10,
+            }}
           >
-            {org.name} {org.address} - {org.zipCode} {org.city}
-          </Text>
-          <Text style={styles.footerText}>
-            n° SIRET {org.siret} {org.vatNumber && `- TVA ${org.vatNumber}`}
-          </Text>
-          <Text style={styles.footerText}>
-            E-mail {org.email || "..."} - Téléphone {org.phone || "..."}
-          </Text>
-          <Text style={[styles.footerText, { marginTop: 4 }]}>
-            {/* Mention légale banque si présente */}
-            {org.iban && `IBAN: ${org.iban} - BIC: ${org.bic}`}
-          </Text>
+            <View
+              style={[
+                styles.footerLegalText,
+                { display: "flex", flexDirection: "row" },
+              ]}
+            >
+              <Text>
+                Banque : {org.bankName} - Titulaire du compte : {org.name}{" "}
+              </Text>
+            </View>
+            <Text style={styles.footerLegalText}>
+              {org.iban && `IBAN: ${org.iban} - BIC: ${org.bic}`}
+            </Text>
+            <Text
+              style={[styles.footerLegalText, { textAlign: "right" }]}
+              render={({ pageNumber, totalPages }) =>
+                `Page ${pageNumber} / ${totalPages} de la facture ${invoice.number}`
+              }
+            />
+          </View>
         </View>
       </Page>
     </Document>
