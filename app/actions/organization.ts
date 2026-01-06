@@ -4,7 +4,6 @@ import prisma from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 
 // --- Récupérer l'org active ---
 export async function getCurrentOrgId() {
@@ -74,18 +73,24 @@ export async function updateOrganization(orgId: string, formData: FormData) {
     throw new Error("Droit insuffisant");
   }
 
-  // Récupération des champs du formulaire
+  // Récupération complète des champs
   const data = {
     name: formData.get("name") as string,
     email: formData.get("email") as string,
     phone: formData.get("phone") as string,
+    logoLink: formData.get("logoLink") as string,
+
     address: formData.get("address") as string,
-    zipCode: formData.get("zipCode") as string, //
+    zipCode: formData.get("zipCode") as string,
     city: formData.get("city") as string,
-    siret: formData.get("siret") as string, //
-    iban: formData.get("iban") as string,
-    bic: formData.get("bic") as string, //
+    country: formData.get("country") as string,
+
+    siret: formData.get("siret") as string,
     vatNumber: formData.get("vatNumber") as string,
+
+    iban: formData.get("iban") as string,
+    bic: formData.get("bic") as string,
+    bankName: formData.get("bankName") as string,
   };
 
   await prisma.organization.update({
@@ -93,7 +98,7 @@ export async function updateOrganization(orgId: string, formData: FormData) {
     data,
   });
 
-  revalidatePath("/settings");
+  revalidatePath("/dashboard/settings");
   return { success: true, message: "Entreprise mise à jour" };
 }
 
