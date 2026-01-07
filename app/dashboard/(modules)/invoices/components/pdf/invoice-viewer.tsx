@@ -65,7 +65,7 @@ export function InvoiceViewer({ url }: InvoiceViewerProps) {
           }
         >
           <Page
-            pageNumber={1}
+            pageNumber={2}
             width={containerWidth || undefined}
             scale={1}
             renderTextLayer={false}
