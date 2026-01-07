@@ -2,7 +2,9 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
-import { Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PDFPagination } from "@/components/pagination";
 
 // Configuration Worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -12,7 +14,8 @@ interface InvoiceViewerProps {
 }
 
 export function InvoiceViewer({ url }: InvoiceViewerProps) {
-  const [numPages, setNumPages] = useState<number>(0);
+  const [numPages, setNumPages] = useState<number | null>(null);
+  const [pageNumber, setPageNumber] = useState<number>(1);
   const [isPdfReady, setIsPdfReady] = useState(false);
 
   // On stocke la largeur du conteneur
@@ -39,6 +42,7 @@ export function InvoiceViewer({ url }: InvoiceViewerProps) {
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages);
+    setPageNumber(1);
     setIsPdfReady(true);
   }
 
@@ -65,7 +69,7 @@ export function InvoiceViewer({ url }: InvoiceViewerProps) {
           }
         >
           <Page
-            pageNumber={2}
+            pageNumber={pageNumber}
             width={containerWidth || undefined}
             scale={1}
             renderTextLayer={false}
@@ -75,9 +79,13 @@ export function InvoiceViewer({ url }: InvoiceViewerProps) {
           />
         </Document>
       </div>
-      {isPdfReady && (
-        <div className="mt-6 text-xs text-slate-400 font-medium">
-          Page 1 sur {numPages}
+      {isPdfReady && numPages && (
+        <div className="py-4 w-full bg-background border-t z-10">
+          <PDFPagination
+            currentPage={pageNumber}
+            totalPages={numPages}
+            onPageChange={setPageNumber}
+          />
         </div>
       )}
     </div>
