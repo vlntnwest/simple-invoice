@@ -8,12 +8,7 @@ import {
 
 export const navItems = [
   {
-    name: "Accueil",
-    href: "/",
-    icon: HomeIcon,
-  },
-  {
-    name: "Dashboard",
+    name: "Tableau de bord",
     href: "/dashboard",
     icon: LayoutDashboard,
   },
@@ -28,8 +23,8 @@ export const navItems = [
     icon: FileText,
   },
   {
-    name: "Settings",
-    href: "/settings",
+    name: "Paramètres",
+    href: "/dashboard/settings",
     icon: Settings,
   },
 ];

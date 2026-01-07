@@ -250,7 +250,7 @@ export function EditCustomerForm({ customer }: EditCustomerFormProps) {
           </CardFooter>
         </form>
       </Card>
-      <div className="mt-4 border-t pt-4 flex justify-center">
+      <div className="mt-4 flex justify-center">
         <DeleteCustomerDialog customerId={customer.id} />
       </div>
     </>

@@ -11,7 +11,7 @@ export const getUserContext = cache(async () => {
   const {
     data: { user: authUser },
   } = await supabase.auth.getUser();
-  if (!authUser) redirect("/login");
+  if (!authUser) redirect("/auth/login");
 
   // 2. DB Fetch
   const dbUser = await prisma.user.findUnique({
@@ -23,7 +23,7 @@ export const getUserContext = cache(async () => {
     },
   });
 
-  if (!dbUser) redirect("/login");
+  if (!dbUser) redirect("/auth/login");
 
   // 3. Resolve Organization
   let currentOrgId = dbUser.lastViewedOrgId;
