@@ -1,7 +1,7 @@
 import prisma from "@/lib/prisma";
 import { getUserContext } from "@/lib/context/context";
-import { CustomerList } from "./customer-list";
-import { CustomerForm } from "./customer-form";
+import { CustomerList } from "./components/customer-list";
+import { CustomerForm } from "./components/customer-form";
 
 export default async function CustomersPage() {
   const { organization } = await getUserContext();

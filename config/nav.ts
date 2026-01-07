@@ -8,11 +8,6 @@ import {
 
 export const navItems = [
   {
-    name: "Accueil",
-    href: "/",
-    icon: HomeIcon,
-  },
-  {
     name: "Tableau de bord",
     href: "/dashboard",
     icon: LayoutDashboard,

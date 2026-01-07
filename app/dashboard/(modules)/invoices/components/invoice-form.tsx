@@ -34,7 +34,7 @@ import { toast } from "sonner";
 import { useState, useTransition } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { DatePicker } from "@/components/ui/date-picker";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Invoice, InvoiceItem } from "@prisma/client";
 
 type Props = {
@@ -51,6 +51,8 @@ const VAT_RATES = [
 ];
 
 export function InvoiceForm({ invoice, customers }: Props) {
+  const searchParams = useSearchParams();
+  const preFetchedCustomerId = searchParams.get("customerId");
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const isEditMode = !!invoice;
@@ -60,7 +62,7 @@ export function InvoiceForm({ invoice, customers }: Props) {
   // Préparation des valeurs par défaut
   const defaultValues: Partial<CreateInvoiceValues> = {
     number: invoice?.number ?? "",
-    customerId: invoice?.customerId ?? "",
+    customerId: invoice?.customerId ?? preFetchedCustomerId ?? "",
     date: invoice?.date ? new Date(invoice.date) : new Date(),
     dueDate: invoice?.dueDate ? new Date(invoice.dueDate) : undefined,
     status: invoice?.status ?? "DRAFT",
@@ -132,7 +134,7 @@ export function InvoiceForm({ invoice, customers }: Props) {
           if (submitAction === "generate") {
             toast.success("Facture validée ! PDF prêt.");
             // TODO Phase 6: Ici on redirigera vers la vue PDF ou on ouvrira le fichier
-            router.push(`/dashboard/invoices`);
+            router.push(`/dashboard/invoices/view/${result.id}`);
           } else {
             toast.success("Brouillon sauvegardé");
             router.push("/dashboard/invoices");

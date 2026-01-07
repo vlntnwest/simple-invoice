@@ -4,8 +4,6 @@ import { notFound, redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Download,
-  Mail,
-  Printer,
   MoreVertical,
   ReceiptText,
   UserRound,
@@ -70,7 +68,7 @@ export default async function InvoiceViewPage({
           </div>
 
           {/* Actions Mobile (Menu déroulant pour gagner de la place) */}
-          <div className="md:hidden">
+          <div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon">
@@ -79,10 +77,14 @@ export default async function InvoiceViewPage({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem>
-                  <Mail className="w-4 h-4 mr-2" /> Envoyer par email
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Download className="w-4 h-4 mr-2" /> Télécharger PDF
+                  <a
+                    href={pdfUrl}
+                    target="_blank"
+                    download
+                    className="flex gap-2 items-center"
+                  >
+                    <Download className="w-4 h-4 mr-2" /> Télécharger PDF
+                  </a>
                 </DropdownMenuItem>
                 <DropdownMenuItem>
                   <Link
@@ -131,12 +133,6 @@ export default async function InvoiceViewPage({
                     <Download className="size-6" />
                   </a>
                 </Button>
-                <Button size="icon-xl" variant="outline">
-                  <Mail className="size-6" />
-                </Button>
-                <Button size="icon-xl" variant="outline">
-                  <Printer className="size-6" />
-                </Button>
               </div>
             </div>
           </div>
@@ -153,18 +149,20 @@ export default async function InvoiceViewPage({
               className="w-full justify-start px-4 py-3 rounded-2xl mb-4"
               asChild
             >
-              <a href={`/dashboard/customers/${invoice.customer.id}`}>
+              <Link
+                href={`/dashboard/customers/overview/${invoice.customer.id}`}
+              >
                 <div className="flex items-center justify-between w-full">
                   <div className="flex items-center justify-start">
                     <UserRound className="mr-4 size-6" />
                     <p className="text-base font-regular">
                       {invoice.customer.companyName ||
-                        invoice.customer.firstName}
+                        `${invoice.customer.firstName} ${invoice.customer.lastName}`}
                     </p>
                   </div>
                   <ChevronRight className="ml-auto size-6" />
                 </div>
-              </a>
+              </Link>
             </Button>
 
             <div className="space-y-4 text-sm">

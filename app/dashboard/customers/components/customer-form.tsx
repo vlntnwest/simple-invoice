@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/dialog";
 
 // Actions
-import { createCustomer } from "./actions";
+import { createCustomer } from "../actions";
 
 // --- COMPOSANT PRINCIPAL (WRAPPER) ---
 export function CustomerForm() {

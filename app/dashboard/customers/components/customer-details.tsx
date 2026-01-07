@@ -19,11 +19,9 @@ import {
   LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { DetailRow } from "./components/detail-row";
-import { DetailGroup } from "./components/detail-group";
+import { DetailRow } from "./detail-row";
+import { DetailGroup } from "./detail-group";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { DeleteCustomerDialog } from "./components/delete-customer-dialog";
 
 interface CustomerDetailsProps {
   customer: any;
@@ -84,12 +82,14 @@ export function CustomerDetails({
                 onClick={() => {}}
               />
             </Link>
-            <ActionButton
-              icon={Eye}
-              label="Aperçu"
-              onClick={() => {}}
-              highlight
-            />
+            <Link href={`/dashboard/customers/overview/${customer.id}`}>
+              <ActionButton
+                icon={Eye}
+                label="Aperçu"
+                onClick={() => {}}
+                highlight
+              />
+            </Link>
           </div>
 
           {/* GROUPE 1 : INFOS CLES */}

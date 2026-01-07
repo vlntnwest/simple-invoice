@@ -225,6 +225,21 @@ export async function getInvoices() {
   });
 }
 
+export async function getClientInvoices(customerId: string) {
+  const organizationId = await requireUserOrganization();
+  if (!organizationId) return [];
+
+  return await prisma.invoice.findMany({
+    where: { customerId, organizationId },
+    include: {
+      customer: {
+        select: { companyName: true, firstName: true, lastName: true },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
 // Types
 export type ActionState = {
   success?: boolean;
