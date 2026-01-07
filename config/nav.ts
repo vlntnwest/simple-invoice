@@ -1,10 +1,4 @@
-import {
-  LayoutDashboard,
-  Users,
-  FileText,
-  Settings,
-  HomeIcon,
-} from "lucide-react";
+import { LayoutDashboard, Users, FileText, Settings } from "lucide-react";
 
 export const navItems = [
   {
@@ -16,6 +10,11 @@ export const navItems = [
     name: "Clients",
     href: "/dashboard/customers",
     icon: Users,
+  },
+  {
+    name: "Devis",
+    href: "/dashboard/quotes",
+    icon: FileText,
   },
   {
     name: "Factures",

@@ -2,18 +2,17 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { PDFPagination } from "@/components/pagination";
 
 // Configuration Worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
-interface InvoiceViewerProps {
+interface QuoteViewerProps {
   url: string;
 }
 
-export function InvoiceViewer({ url }: InvoiceViewerProps) {
+export function QuoteViewer({ url }: QuoteViewerProps) {
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [isPdfReady, setIsPdfReady] = useState(false);
