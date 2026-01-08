@@ -158,7 +158,6 @@ export function QuoteForm({ quote, customers }: Props) {
         {/* SECTION 1 : INFOS GÉNÉRALES */}
         <div className="space-y-4 bg-white p-4 rounded-xl border dark:bg-slate-900">
           <div className="flex items-center gap-2 mb-2 font-semibold text-slate-700 dark:text-slate-200">
-            <Receipt className="w-4 h-4" />
             Informations
           </div>
 

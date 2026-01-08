@@ -22,6 +22,8 @@ import {
 import ReturnArrow from "@/components/returnArrow";
 import { STATEVALUES } from "../../config/states";
 import { DynamicQuoteViewer } from "../../components/pdf/dynamic-quote-viewer";
+import { TransformToInv } from "../../components/btn/transformToInv";
+import { IconToInv } from "../../components/btn/iconToInv";
 
 export default async function QuoteViewPage({
   params,
@@ -46,8 +48,6 @@ export default async function QuoteViewPage({
 
   if (!quote) notFound();
 
-  // URL de l'API que nous avons créée juste avant
-  // On ajoute un timestamp pour éviter le cache navigateur agressif si on vient de modifier
   const pdfUrl = `/dashboard/quotes/api/pdf/${quote.id}?t=${Date.now()}`;
 
   return (
@@ -83,8 +83,11 @@ export default async function QuoteViewPage({
                     download
                     className="flex gap-2 items-center"
                   >
-                    <Download className="w-4 h-4 mr-2" /> Télécharger PDF
+                    Télécharger PDF
                   </a>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <TransformToInv id={quote.id} />
                 </DropdownMenuItem>
                 <DropdownMenuItem>
                   <Link
@@ -133,6 +136,7 @@ export default async function QuoteViewPage({
                     <Download className="size-6" />
                   </a>
                 </Button>
+                <IconToInv id={quote.id} />
               </div>
             </div>
           </div>

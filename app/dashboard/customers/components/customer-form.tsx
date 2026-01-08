@@ -251,6 +251,10 @@ function CustomerFormContent({ setOpen, isDrawer }: FormContentProps) {
           <Input name="city" id="city" />
         </div>
       </div>
+      <div className="space-y-2">
+        <Label htmlFor="country">Pays</Label>
+        <Input name="country" id="country" />
+      </div>
 
       {/* FOOTER ADAPTATIF */}
       {isDrawer ? (

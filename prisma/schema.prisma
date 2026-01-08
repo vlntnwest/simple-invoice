@@ -164,6 +164,9 @@ model Invoice {
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id])
 
+fromQuoteId    String?      @unique 
+  fromQuote      Quote?       @relation(fields: [fromQuoteId], references: [id])
+
   items InvoiceItem[]
 
   createdAt DateTime @default(now())
@@ -211,6 +214,8 @@ model Quote {
   customer   Customer @relation(fields: [customerId], references: [id])
 
   items QuoteItem[]
+
+generatedInvoice Invoice?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
