@@ -237,6 +237,108 @@ export async function getClientQuotes(customerId: string) {
   });
 }
 
+// --- HELPER FUNCTION (Logique utilisateur) ---
+function generateNextInvoiceNumber(lastNumber: string | undefined): string {
+  if (!lastNumber) return "INV-001"; // Fallback par défaut
+
+  const match = lastNumber.match(/(\d+)$/);
+  if (!match) return "INV-001";
+
+  const numberPart = match[1];
+  const prefix = lastNumber.slice(0, -numberPart.length);
+  const nextNumber = parseInt(numberPart, 10) + 1;
+
+  return `${prefix}${nextNumber.toString().padStart(numberPart.length, "0")}`;
+}
+
+// --- SERVER ACTION ---
+export async function transformQuoteToInvoice(quoteId: string) {
+  // 1. Auth & Security Check
+  const organizationId = await requireUserOrganization();
+  if (!organizationId) return { error: "Non autorisé" };
+
+  // 2. Fetch du Devis
+  const quote = await prisma.quote.findUnique({
+    where: {
+      id: quoteId,
+      organizationId: organizationId,
+    },
+    include: { items: true },
+  });
+
+  if (!quote) return { error: "Devis introuvable" };
+
+  try {
+    // 3. Transaction Database
+    const newInvoiceId = await prisma.$transaction(async (tx) => {
+      // A. Passer le devis en ACCEPTED
+      await tx.quote.update({
+        where: { id: quoteId },
+        data: { status: "ACCEPTED" },
+      });
+
+      // B. Générer le numéro de facture (INTEGRATION DE TA LOGIQUE)
+      // On utilise 'tx' ici pour rester dans le contexte de la transaction
+      const lastInvoice = await tx.invoice.findFirst({
+        where: { organizationId: organizationId },
+        orderBy: { createdAt: "desc" }, // On cherche la dernière créée
+        select: { number: true },
+      });
+
+      const invoiceNumber = generateNextInvoiceNumber(lastInvoice?.number);
+
+      // C. Créer la facture
+      const invoice = await tx.invoice.create({
+        data: {
+          organizationId: organizationId,
+          customerId: quote.customerId,
+          number: invoiceNumber, // Utilisation du numéro généré
+          status: "DRAFT",
+
+          date: new Date(),
+          dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // J+30
+
+          // Copie des montants (Cache)
+          subtotal: quote.subtotal,
+          discount: quote.discount,
+          tax: quote.tax,
+          total: quote.total,
+          note: quote.note,
+
+          // Création des items
+          items: {
+            create: quote.items.map((item) => ({
+              description: item.description,
+              details: item.details,
+              quantity: item.quantity,
+              unite: item.unite,
+              price: item.price,
+              taxRate: item.taxRate,
+              discount: item.discount,
+            })),
+          },
+        },
+        select: { id: true },
+      });
+
+      return invoice.id;
+    });
+
+    // 4. Succès & Revalidation
+    revalidatePath("/dashboard/quotes");
+    revalidatePath("/dashboard/invoices");
+
+    return { success: true, invoiceId: newInvoiceId };
+  } catch (error) {
+    console.error("Erreur transformation devis->facture:", error);
+    // Gestion basique d'erreur de contrainte unique (si deux factures ont le même numéro par malchance)
+    if ((error as any).code === "P2002") {
+      return { error: "Erreur de numérotation, veuillez réessayer." };
+    }
+    return { error: "Une erreur est survenue lors de la création." };
+  }
+}
+
 // Types
 export type ActionState = {
   success?: boolean;
