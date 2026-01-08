@@ -86,14 +86,6 @@ export default async function InvoiceViewPage({
                     <Download className="w-4 h-4 mr-2" /> Télécharger PDF
                   </a>
                 </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Link
-                    href={`/dashboard/invoices/edit/${invoice.id}`}
-                    className="flex items-center w-full"
-                  >
-                    Éditer
-                  </Link>
-                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

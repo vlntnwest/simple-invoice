@@ -1,7 +1,7 @@
 export const STATEVALUES = {
   DRAFT: "Brouillon",
   SENT: "Envoyée",
-  PAID: "Payé",
-  OVERDUE: "En retard",
-  CANCELED: "Annulé",
+  ACCEPTED: "Accepté",
+  REJECTED: "Rejeté",
+  EXPIRED: "Expiré",
 };

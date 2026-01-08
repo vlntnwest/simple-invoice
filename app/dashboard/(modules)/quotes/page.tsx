@@ -49,11 +49,11 @@ export default async function QuotesPage() {
                       <div className="flex items-center max-w-full">
                         <span className="inline-flex items-center">
                           <span className="text-base font-semibold after:content-['·'] after:mx-1">
-                            {
-                              STATEVALUES[
-                                quote.status as keyof typeof STATEVALUES
-                              ]
-                            }
+                            {quote.validUntil < new Date()
+                              ? STATEVALUES["EXPIRED"]
+                              : STATEVALUES[
+                                  quote.status as keyof typeof STATEVALUES
+                                ]}
                           </span>
                           <p>{formatDate(quote.date)}</p>
                         </span>

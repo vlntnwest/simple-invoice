@@ -43,7 +43,7 @@ export default async function SettingsPage() {
               </CardHeader>
               <CardContent>
                 {/* On passe les données au composant client */}
-                <OrganizationForm organization={currentOrg} />
+                <OrganizationForm organization={currentOrg!} />
               </CardContent>
             </Card>
           </TabsContent>

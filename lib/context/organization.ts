@@ -38,8 +38,6 @@ export async function requireUserOrganization() {
   });
 
   if (!firstMembership) {
-    // Cas critique : User sans organisation -> Redirection Onboarding
-    // Pour l'instant on retourne null pour laisser l'appelant gérer
     return null;
   }
 

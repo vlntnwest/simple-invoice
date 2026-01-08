@@ -3,13 +3,13 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"; // Assure-toi d'avoir ce composant
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { updateOrganization } from "@/app/actions/organization";
 import { toast } from "sonner";
 import { useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Upload, Building2 } from "lucide-react";
-import { Organization } from "@prisma/client"; // Import du type si disponible
+import { Building2 } from "lucide-react";
+import { Organization } from "@prisma/client";
 
 export function OrganizationForm({
   organization,
@@ -50,7 +50,7 @@ export function OrganizationForm({
         data: { publicUrl },
       } = supabase.storage.from("logos").getPublicUrl(fileName);
 
-      setLogoUrl(publicUrl); // Met à jour l'état local (et l'input caché)
+      setLogoUrl(publicUrl);
       toast.success("Logo téléchargé (pensez à enregistrer !)");
     } catch (error) {
       console.error(error);

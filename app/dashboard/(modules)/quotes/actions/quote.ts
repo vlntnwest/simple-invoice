@@ -56,6 +56,19 @@ function calculateQuoteTotals(items: CreateQuoteValues["items"]) {
   };
 }
 
+function generateNextInvoiceNumber(lastNumber: string | undefined): string {
+  if (!lastNumber) return "INV-001"; // Fallback par défaut
+
+  const match = lastNumber.match(/(\d+)$/);
+  if (!match) return "INV-001";
+
+  const numberPart = match[1];
+  const prefix = lastNumber.slice(0, -numberPart.length);
+  const nextNumber = parseInt(numberPart, 10) + 1;
+
+  return `${prefix}${nextNumber.toString().padStart(numberPart.length, "0")}`;
+}
+
 // --- ACTIONS ---
 
 export async function createQuote(values: CreateQuoteValues) {
@@ -237,20 +250,6 @@ export async function getClientQuotes(customerId: string) {
   });
 }
 
-// --- HELPER FUNCTION (Logique utilisateur) ---
-function generateNextInvoiceNumber(lastNumber: string | undefined): string {
-  if (!lastNumber) return "INV-001"; // Fallback par défaut
-
-  const match = lastNumber.match(/(\d+)$/);
-  if (!match) return "INV-001";
-
-  const numberPart = match[1];
-  const prefix = lastNumber.slice(0, -numberPart.length);
-  const nextNumber = parseInt(numberPart, 10) + 1;
-
-  return `${prefix}${nextNumber.toString().padStart(numberPart.length, "0")}`;
-}
-
 // --- SERVER ACTION ---
 export async function transformQuoteToInvoice(quoteId: string) {
   // 1. Auth & Security Check
@@ -292,7 +291,7 @@ export async function transformQuoteToInvoice(quoteId: string) {
         data: {
           organizationId: organizationId,
           customerId: quote.customerId,
-          number: invoiceNumber, // Utilisation du numéro généré
+          number: invoiceNumber,
           status: "DRAFT",
 
           date: new Date(),
