@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { transformQuoteToInvoice } from "../actions/quote"; // Ton Server Action
+import { transformQuoteToInvoice } from "../actions/quote";
 
 export function useTransformQuote() {
   const [isPending, startTransition] = useTransition();
@@ -15,7 +15,7 @@ export function useTransformQuote() {
         const result = await transformQuoteToInvoice(quoteId);
 
         if (result.success && result.invoiceId) {
-          toast.success("Facture créée avec succès !");
+          toast.success(result.message);
           router.push(`/dashboard/invoices/edit/${result.invoiceId}`);
         } else {
           toast.error(result.error || "Impossible de créer la facture");

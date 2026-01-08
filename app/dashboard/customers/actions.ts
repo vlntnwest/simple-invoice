@@ -67,6 +67,8 @@ export async function createCustomer(formData: FormData) {
   const { organization } = await getUserContext();
   if (!organization) return { error: "Organisation introuvable" };
 
+  console.log(formData);
+
   // 1. Déterminer le type
   const isCompany = formData.get("isCompany") === "true";
   const type = isCompany ? "COMPANY" : "INDIVIDUAL";
@@ -87,6 +89,8 @@ export async function createCustomer(formData: FormData) {
 
   // 2. Validation Zod
   const validated = CustomerSchema.safeParse(rawData);
+
+  console.log(validated);
 
   if (!validated.success) {
     return { error: validated.error.flatten().fieldErrors };

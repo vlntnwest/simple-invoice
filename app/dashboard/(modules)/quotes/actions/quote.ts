@@ -250,13 +250,28 @@ export async function getClientQuotes(customerId: string) {
   });
 }
 
-// --- SERVER ACTION ---
 export async function transformQuoteToInvoice(quoteId: string) {
   // 1. Auth & Security Check
   const organizationId = await requireUserOrganization();
   if (!organizationId) return { error: "Non autorisé" };
 
-  // 2. Fetch du Devis
+  // 2. VÉRIFICATION
+  const existingInvoice = await prisma.invoice.findUnique({
+    where: {
+      fromQuoteId: quoteId,
+    },
+    select: { id: true },
+  });
+
+  if (existingInvoice) {
+    return {
+      success: true,
+      invoiceId: existingInvoice.id,
+      message: "Cette facture existe déjà.",
+    };
+  }
+
+  // 3. Fetch du Devis
   const quote = await prisma.quote.findUnique({
     where: {
       id: quoteId,
@@ -293,6 +308,7 @@ export async function transformQuoteToInvoice(quoteId: string) {
           customerId: quote.customerId,
           number: invoiceNumber,
           status: "DRAFT",
+          fromQuoteId: quoteId,
 
           date: new Date(),
           dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // J+30
@@ -327,7 +343,11 @@ export async function transformQuoteToInvoice(quoteId: string) {
     revalidatePath("/dashboard/quotes");
     revalidatePath("/dashboard/invoices");
 
-    return { success: true, invoiceId: newInvoiceId };
+    return {
+      success: true,
+      invoiceId: newInvoiceId,
+      message: "Facture créée avec succès !",
+    };
   } catch (error) {
     console.error("Erreur transformation devis->facture:", error);
     // Gestion basique d'erreur de contrainte unique (si deux factures ont le même numéro par malchance)
