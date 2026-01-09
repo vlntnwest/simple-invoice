@@ -181,8 +181,12 @@ const styles = StyleSheet.create({
   },
 });
 
+type SerializedInvoiceItem = Omit<InvoiceItem, "taxRate"> & {
+  taxRate: number;
+};
+
 type InvoiceData = Invoice & {
-  items: InvoiceItem[];
+  items: SerializedInvoiceItem[];
   customer: Customer;
   organization: Organization;
 };
@@ -202,7 +206,7 @@ export const InvoicePDF = ({ invoice }: Props) => {
     format(new Date(date), "d MMMM yyyy", { locale: fr });
 
   // --- LOGIQUE MULTI-TVA ---
-  const calculateTaxBreakdown = (items: InvoiceItem[]) => {
+  const calculateTaxBreakdown = (items: SerializedInvoiceItem[]) => {
     const breakdown: Record<string, { base: number; amount: number }> = {};
     items.forEach((item) => {
       const rateKey = item.taxRate.toFixed(1);

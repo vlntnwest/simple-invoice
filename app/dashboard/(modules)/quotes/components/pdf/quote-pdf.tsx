@@ -181,8 +181,12 @@ const styles = StyleSheet.create({
   },
 });
 
+type SerializedQuoteItem = Omit<QuoteItem, "taxRate"> & {
+  taxRate: number;
+};
+
 type QuoteData = Quote & {
-  items: QuoteItem[];
+  items: SerializedQuoteItem[];
   customer: Customer;
   organization: Organization;
 };
@@ -202,7 +206,7 @@ export const QuotePDF = ({ quote }: Props) => {
     format(new Date(date), "d MMMM yyyy", { locale: fr });
 
   // --- LOGIQUE MULTI-TVA ---
-  const calculateTaxBreakdown = (items: QuoteItem[]) => {
+  const calculateTaxBreakdown = (items: SerializedQuoteItem[]) => {
     const breakdown: Record<string, { base: number; amount: number }> = {};
     items.forEach((item) => {
       const rateKey = item.taxRate.toFixed(1);

@@ -34,9 +34,17 @@ export async function GET(
     return NextResponse.json({ error: "Devis introuvable" }, { status: 404 });
   }
 
+  const serializedQuote = {
+    ...quote,
+    items: quote.items.map((item) => ({
+      ...item,
+      taxRate: item.taxRate.toNumber(), // Conversion vitale ici
+    })),
+  };
+
   // 3. Génération du PDF
   try {
-    const stream = await renderToStream(<QuotePDF quote={quote} />);
+    const stream = await renderToStream(<QuotePDF quote={serializedQuote} />);
 
     return new NextResponse(stream as unknown as BodyInit, {
       headers: {

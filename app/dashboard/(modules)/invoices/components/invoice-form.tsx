@@ -209,7 +209,6 @@ export function InvoiceForm({ invoice, customers }: Props) {
                       value={field.value || ""}
                       placeholder="Auto (ex: 26303)"
                       // On désactive souvent l'édition du numéro en mode update pour éviter les trous de séquence
-                      disabled={isEditMode && !!field.value}
                     />
                   </FormControl>
                   <FormMessage />
