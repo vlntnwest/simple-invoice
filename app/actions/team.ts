@@ -119,28 +119,37 @@ export async function removeTeamMember(userId: string) {
     throw new Error("Droits insuffisants");
   }
 
-  // Prevent removing the last admin
-  // On compte les admins de l'organisation
-  const targetMembership = await prisma.membership.findUnique({
-    where: { userId_organizationId: { userId, organizationId: orgId } },
-  });
-
-  if (targetMembership?.role === "ADMIN") {
-    const adminCount = await prisma.membership.count({
-      where: { organizationId: orgId, role: "ADMIN" },
+  await prisma.$transaction(async (tx) => {
+    // 1. Récupérer le membre cible DANS la transaction
+    const targetMembership = await tx.membership.findUnique({
+      where: { userId_organizationId: { userId, organizationId: orgId } },
     });
-    if (adminCount <= 1) {
-      throw new Error("Impossible de supprimer le dernier administrateur");
-    }
-  }
 
-  await prisma.membership.delete({
-    where: {
-      userId_organizationId: {
-        userId: userId,
-        organizationId: orgId,
+    if (!targetMembership) {
+      // S'il n'existe pas, on arrête là (idempotence)
+      return;
+    }
+
+    // 2. Si c'est un ADMIN, vérifier qu'il en reste d'autres
+    if (targetMembership.role === "ADMIN") {
+      const adminCount = await tx.membership.count({
+        where: { organizationId: orgId, role: "ADMIN" },
+      });
+
+      if (adminCount <= 1) {
+        throw new Error("Impossible de supprimer le dernier administrateur");
+      }
+    }
+
+    // 3. Supprimer le membre
+    await tx.membership.delete({
+      where: {
+        userId_organizationId: {
+          userId: userId,
+          organizationId: orgId,
+        },
       },
-    },
+    });
   });
 
   revalidatePath("/dashboard/settings");

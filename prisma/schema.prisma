@@ -74,8 +74,8 @@ model Organization {
 model User {
   id        String  @id @default(uuid())
   email     String  @unique
-  firstName String?
-  lastName  String?
+  firstName String? @db.VarChar(100)
+  lastName  String? @db.VarChar(100)
 
   memberships Membership[]
 
@@ -233,5 +233,5 @@ model QuoteItem {
   price   Int // Prix unitaire HT en CENTS
   taxRate Decimal @default(20.0) @db.Decimal(5, 2)
   quoteId String
-  quote   Quote  @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  quote   Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
 }
