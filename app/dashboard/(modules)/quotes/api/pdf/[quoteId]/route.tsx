@@ -38,7 +38,7 @@ export async function GET(
     ...quote,
     items: quote.items.map((item) => ({
       ...item,
-      taxRate: item.taxRate ? item.taxRate.toNumber() : 20,
+      taxRate: item.taxRate != null ? item.taxRate.toNumber() : 20,
     })),
   };
 

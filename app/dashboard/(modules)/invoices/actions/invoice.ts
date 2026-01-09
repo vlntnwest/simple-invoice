@@ -7,7 +7,6 @@ import {
 } from "../lib/schemas/invoice";
 import { revalidatePath } from "next/cache";
 import { getUserContext } from "@/lib/context/context";
-import { invoiceEvents } from "../lib/events/invoice-events";
 import { requireUserOrganization } from "@/lib/context/organization";
 
 // --- HELPERS METIER ---
@@ -198,11 +197,6 @@ export async function updateInvoice(
       return inv;
     });
 
-    // 2. TRIGGER : Si le statut est passé à SENT, on déclenche les events
-    if (updatedInvoice.status === "SENT") {
-      await invoiceEvents.onValidate(updatedInvoice.id);
-    }
-
     revalidatePath("/dashboard/invoices");
     revalidatePath(`/dashboard/invoices/edit/${invoiceId}`);
     return { success: true, id: invoiceId };
@@ -239,13 +233,10 @@ export async function validateInvoice(invoiceId: string): Promise<ActionState> {
   if (!organization) return { error: "Non autorisé" };
 
   try {
-    const updatedInvoice = await prisma.invoice.update({
+    await prisma.invoice.update({
       where: { id: invoiceId, organizationId: organization.id },
       data: { status: "SENT" },
     });
-
-    // TRIGGER via le bouton dédié aussi
-    await invoiceEvents.onValidate(updatedInvoice.id);
 
     revalidatePath("/dashboard/invoices");
     return { success: true, id: invoiceId };
@@ -273,7 +264,7 @@ export async function getInvoices() {
     ...invoice,
     items: invoice.items?.map((item) => ({
       ...item,
-      taxRate: item.taxRate.toNumber(),
+      taxRate: item.taxRate != null ? item.taxRate.toNumber() : 20,
     })),
   }));
 }
@@ -297,7 +288,7 @@ export async function getClientInvoices(customerId: string) {
     ...invoice,
     items: invoice.items?.map((item) => ({
       ...item,
-      taxRate: item.taxRate.toNumber(),
+      taxRate: item.taxRate != null ? item.taxRate.toNumber() : 20,
     })),
   }));
 }

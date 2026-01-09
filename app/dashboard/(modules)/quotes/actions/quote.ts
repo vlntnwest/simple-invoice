@@ -4,7 +4,6 @@ import prisma from "@/lib/prisma";
 import { createQuoteSchema, CreateQuoteValues } from "../lib/schemas/quote";
 import { revalidatePath } from "next/cache";
 import { getUserContext } from "@/lib/context/context";
-import { quoteEvents } from "../lib/events/quote-events";
 import { requireUserOrganization } from "@/lib/context/organization";
 
 // --- HELPERS METIER ---
@@ -127,11 +126,6 @@ export async function createQuote(
         });
       });
 
-      // 2. TRIGGER : Si créé directement en SENT, on déclenche les events (PDF, Email...)
-      if (newQuote.status === "SENT") {
-        await quoteEvents.onValidate(newQuote.id);
-      }
-
       revalidatePath("/dashboard/quotes");
       return { success: true, id: newQuote.id };
     } catch (error: any) {
@@ -207,11 +201,6 @@ export async function updateQuote(
       return inv;
     });
 
-    // 2. TRIGGER : Si le statut est passé à SENT, on déclenche les events
-    if (updatedQuote.status === "SENT") {
-      await quoteEvents.onValidate(updatedQuote.id);
-    }
-
     revalidatePath("/dashboard/quotes");
     revalidatePath(`/dashboard/quotes/edit/${quoteId}`);
     return { success: true, id: quoteId };
@@ -248,13 +237,10 @@ export async function validateQuote(quoteId: string): Promise<ActionState> {
   if (!organization) return { error: "Non autorisé" };
 
   try {
-    const updatedQuote = await prisma.quote.update({
+    await prisma.quote.update({
       where: { id: quoteId, organizationId: organization.id },
       data: { status: "SENT" },
     });
-
-    // TRIGGER via le bouton dédié aussi
-    await quoteEvents.onValidate(updatedQuote.id);
 
     revalidatePath("/dashboard/quotes");
     return { success: true, id: quoteId };
@@ -282,7 +268,7 @@ export async function getQuotes() {
     ...quote,
     items: quote.items?.map((item) => ({
       ...item,
-      taxRate: item.taxRate.toNumber(),
+      taxRate: item.taxRate != null ? item.taxRate.toNumber() : 20,
     })),
   }));
 }
@@ -306,7 +292,7 @@ export async function getClientQuotes(customerId: string) {
     ...quote,
     items: quote.items?.map((item) => ({
       ...item,
-      taxRate: item.taxRate.toNumber(),
+      taxRate: item.taxRate != null ? item.taxRate.toNumber() : 20,
     })),
   }));
 }
