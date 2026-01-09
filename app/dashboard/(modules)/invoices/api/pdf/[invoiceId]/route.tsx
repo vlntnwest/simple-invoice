@@ -38,7 +38,7 @@ export async function GET(
     ...invoice,
     items: invoice.items.map((item) => ({
       ...item,
-      taxRate: item.taxRate ? item.taxRate.toNumber() : 0,
+      taxRate: item.taxRate ? item.taxRate.toNumber() : 20,
     })),
   };
 
