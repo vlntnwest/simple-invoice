@@ -236,18 +236,11 @@ export async function getQuotes() {
       customer: {
         select: { companyName: true, firstName: true, lastName: true },
       },
-      items: true,
     },
     orderBy: { createdAt: "desc" },
   });
 
-  return quotes.map((quote) => ({
-    ...quote,
-    items: quote.items?.map((item) => ({
-      ...item,
-      taxRate: item.taxRate ? item.taxRate.toNumber() : 20,
-    })),
-  }));
+  return quotes;
 }
 
 export async function getClientQuotes(customerId: string) {
@@ -260,18 +253,11 @@ export async function getClientQuotes(customerId: string) {
       customer: {
         select: { companyName: true, firstName: true, lastName: true },
       },
-      items: true,
     },
     orderBy: { createdAt: "desc" },
   });
 
-  return quotes.map((quote) => ({
-    ...quote,
-    items: quote.items?.map((item) => ({
-      ...item,
-      taxRate: item.taxRate ? item.taxRate.toNumber() : 20,
-    })),
-  }));
+  return quotes;
 }
 
 export async function transformQuoteToInvoice(quoteId: string) {

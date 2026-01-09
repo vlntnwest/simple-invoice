@@ -225,18 +225,11 @@ export async function getInvoices() {
       customer: {
         select: { companyName: true, firstName: true, lastName: true },
       },
-      items: true,
     },
     orderBy: { createdAt: "desc" },
   });
 
-  return invoices.map((invoice) => ({
-    ...invoice,
-    items: invoice.items?.map((item) => ({
-      ...item,
-      taxRate: item.taxRate ? item.taxRate.toNumber() : 20,
-    })),
-  }));
+  return invoices;
 }
 
 export async function getClientInvoices(customerId: string) {
@@ -249,18 +242,11 @@ export async function getClientInvoices(customerId: string) {
       customer: {
         select: { companyName: true, firstName: true, lastName: true },
       },
-      items: true,
     },
     orderBy: { createdAt: "desc" },
   });
 
-  return invoices.map((invoice) => ({
-    ...invoice,
-    items: invoice.items?.map((item) => ({
-      ...item,
-      taxRate: item.taxRate ? item.taxRate.toNumber() : 20,
-    })),
-  }));
+  return invoices;
 }
 
 // Types
