@@ -71,50 +71,93 @@ function generateNextInvoiceNumber(lastNumber: string | undefined): string {
 
 // --- ACTIONS ---
 
-export async function createQuote(values: CreateQuoteValues) {
+export async function createQuote(
+  values: CreateQuoteValues
+): Promise<ActionState> {
   const { organization } = await getUserContext();
-  if (!organization) throw new Error("Unauthorized");
+  if (!organization) return { error: "Unauthorized" };
 
-  const validatedFields = createQuoteSchema.parse(values);
+  // Validation sécurisée
+  const validated = createQuoteSchema.safeParse(values);
+  if (!validated.success) {
+    return {
+      error: "Données invalides",
+      fieldErrors: validated.error.flatten().fieldErrors,
+    };
+  }
+
+  const validatedFields = validated.data;
   const calculation = calculateQuoteTotals(validatedFields.items);
 
-  // Génération du numéro si absent
-  let quoteNumber = validatedFields.number;
-  if (!quoteNumber || quoteNumber.trim() === "") {
-    const lastQuote = await prisma.quote.findFirst({
-      where: { organizationId: organization.id },
-      orderBy: { createdAt: "desc" },
-      select: { number: true },
-    });
-    quoteNumber = generateNextNumber(lastQuote?.number);
+  // LOGIQUE DE RETRY POUR EVITER LES COLLISIONS DE NUMERO
+  let attempts = 0;
+  const maxRetries = 3;
+
+  while (attempts < maxRetries) {
+    try {
+      const newQuote = await prisma.$transaction(async (tx) => {
+        let quoteNumber = validatedFields.number;
+
+        // Génération du numéro si absent DANS la transaction
+        if (!quoteNumber || quoteNumber.trim() === "") {
+          const lastQuote = await tx.quote.findFirst({
+            where: { organizationId: organization.id },
+            orderBy: { createdAt: "desc" },
+            select: { number: true },
+          });
+          quoteNumber = generateNextNumber(lastQuote?.number);
+        }
+
+        return await tx.quote.create({
+          data: {
+            organizationId: organization.id,
+            number: quoteNumber,
+            customerId: validatedFields.customerId,
+            date: validatedFields.date,
+            validUntil: validatedFields.validUntil,
+            status: validatedFields.status,
+            note: validatedFields.note,
+            subtotal: calculation.subtotal,
+            tax: calculation.tax,
+            total: calculation.total,
+            items: {
+              create: calculation.items,
+            },
+          },
+        });
+      });
+
+      // 2. TRIGGER : Si créé directement en SENT, on déclenche les events (PDF, Email...)
+      if (newQuote.status === "SENT") {
+        await quoteEvents.onValidate(newQuote.id);
+      }
+
+      revalidatePath("/dashboard/quotes");
+      return { success: true, id: newQuote.id };
+    } catch (error: any) {
+      // Gestion de l'erreur Prisma P2002 (Unique constraint failed)
+      if (error.code === "P2002") {
+        // Cas A : L'utilisateur a fourni son propre numéro -> Erreur directe
+        if (validatedFields.number && validatedFields.number.trim() !== "") {
+          return { error: "Ce numéro de devis existe déjà." };
+        }
+
+        // Cas B : Numéro auto-généré -> On réessaie (Collision concurrente)
+        attempts++;
+        if (attempts < maxRetries) {
+          continue; // On boucle pour regénérer un nouveau numéro
+        }
+      }
+
+      console.error("Erreur createQuote:", error);
+      return { error: "Erreur technique lors de la création du devis." };
+    }
   }
 
-  // 1. Création en base
-  const newQuote = await prisma.quote.create({
-    data: {
-      organizationId: organization.id,
-      number: quoteNumber,
-      customerId: validatedFields.customerId,
-      date: validatedFields.date,
-      validUntil: validatedFields.validUntil,
-      status: validatedFields.status,
-      note: validatedFields.note,
-      subtotal: calculation.subtotal,
-      tax: calculation.tax,
-      total: calculation.total,
-      items: {
-        create: calculation.items,
-      },
-    },
-  });
-
-  // 2. TRIGGER : Si créé directement en SENT, on déclenche les events (PDF, Email...)
-  if (newQuote.status === "SENT") {
-    await quoteEvents.onValidate(newQuote.id);
-  }
-
-  revalidatePath("/dashboard/quotes");
-  return { success: true, id: newQuote.id };
+  return {
+    error:
+      "Impossible de générer un numéro unique après plusieurs essais. Veuillez réessayer.",
+  };
 }
 
 export async function updateQuote(
