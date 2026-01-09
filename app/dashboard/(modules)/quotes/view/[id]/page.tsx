@@ -24,6 +24,7 @@ import { STATEVALUES } from "../../config/states";
 import { DynamicQuoteViewer } from "../../components/pdf/dynamic-quote-viewer";
 import { TransformToInv } from "../../components/btn/transformToInv";
 import { IconToInv } from "../../components/btn/iconToInv";
+import { DeleteBtn } from "../../components/deleteBtn";
 
 export default async function QuoteViewPage({
   params,
@@ -204,12 +205,7 @@ export default async function QuoteViewPage({
           </div>
 
           <div className="pt-4 flex justify-center">
-            <Button
-              variant="link"
-              className="text-slate-400 h-auto p-0 text-xs "
-            >
-              Supprimer ce devis (Irreversible)
-            </Button>
+            <DeleteBtn quoteId={quote.id} />
           </div>
         </div>
       </div>

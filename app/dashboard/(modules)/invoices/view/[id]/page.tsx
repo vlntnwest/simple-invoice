@@ -22,6 +22,7 @@ import {
 import ReturnArrow from "@/components/returnArrow";
 import { STATEVALUES } from "../../config/states";
 import { DynamicInvoiceViewer } from "../../components/pdf/dynamic-invoice-viewer";
+import { DeleteBtn } from "../../components/deleteBtn";
 
 export default async function InvoiceViewPage({
   params,
@@ -194,12 +195,7 @@ export default async function InvoiceViewPage({
           </div>
 
           <div className="pt-4 flex justify-center">
-            <Button
-              variant="link"
-              className="text-slate-400 h-auto p-0 text-xs "
-            >
-              Supprimer cette facture (Irreversible)
-            </Button>
+            <DeleteBtn invoiceId={invoice.id} />
           </div>
         </div>
       </div>
