@@ -38,7 +38,7 @@ export async function GET(
     ...quote,
     items: quote.items.map((item) => ({
       ...item,
-      taxRate: item.taxRate.toNumber(), // Conversion vitale ici
+      taxRate: item.taxRate ? item.taxRate.toNumber() : 0,
     })),
   };
 
