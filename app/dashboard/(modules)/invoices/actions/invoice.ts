@@ -71,33 +71,7 @@ export async function createInvoice(values: CreateInvoiceValues) {
   const validatedFields = createInvoiceSchema.parse(values);
 
   // 2. Calculs de sécurité (Côté Serveur)
-  let calculatedSubtotal = 0; // HT
-  let calculatedTax = 0; // TVA
-
-  const itemsToCreate = validatedFields.items.map((item) => {
-    const priceInCents = Math.round(item.price * 100);
-    const quantity = item.quantity;
-    const taxRate = item.taxRate;
-
-    const lineSubtotal = priceInCents * quantity;
-    const lineTax = lineSubtotal * (taxRate / 100);
-
-    calculatedSubtotal += lineSubtotal;
-    calculatedTax += lineTax;
-
-    return {
-      description: item.description,
-      details: item.details,
-      quantity: quantity,
-      unite: item.unite,
-      price: priceInCents,
-      taxRate: taxRate,
-    };
-  });
-
-  const finalSubtotal = Math.round(calculatedSubtotal);
-  const finalTax = Math.round(calculatedTax);
-  const finalTotal = finalSubtotal + finalTax;
+  const calculation = calculateInvoiceTotals(validatedFields.items);
 
   // 3. Transaction avec calcul de numéro ATOMIQUE (ou presque)
   const newInvoice = await prisma.$transaction(async (tx) => {
@@ -119,14 +93,14 @@ export async function createInvoice(values: CreateInvoiceValues) {
         status: validatedFields.status,
         date: validatedFields.date,
         dueDate: validatedFields.dueDate,
-        subtotal: finalSubtotal,
-        tax: finalTax,
-        total: finalTotal,
+        subtotal: calculation.subtotal,
+        tax: calculation.tax,
+        total: calculation.total,
         organizationId: user.organization!.id,
         customerId: validatedFields.customerId,
         note: validatedFields.note,
         items: {
-          create: itemsToCreate,
+          create: calculation.items,
         },
       },
     });
