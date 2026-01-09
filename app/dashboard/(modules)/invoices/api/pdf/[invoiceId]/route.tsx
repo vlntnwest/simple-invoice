@@ -34,9 +34,19 @@ export async function GET(
     return NextResponse.json({ error: "Facture introuvable" }, { status: 404 });
   }
 
+  const serializedInvoice = {
+    ...invoice,
+    items: invoice.items.map((item) => ({
+      ...item,
+      taxRate: item.taxRate ? item.taxRate.toNumber() : 20,
+    })),
+  };
+
   // 3. Génération du PDF
   try {
-    const stream = await renderToStream(<InvoicePDF invoice={invoice} />);
+    const stream = await renderToStream(
+      <InvoicePDF invoice={serializedInvoice} />
+    );
 
     return new NextResponse(stream as unknown as BodyInit, {
       headers: {

@@ -37,8 +37,16 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Invoice, InvoiceItem } from "@prisma/client";
 
+type SerializedInvoiceItem = Omit<InvoiceItem, "taxRate"> & {
+  taxRate: number;
+};
+
+type SerializedInvoice = Omit<Invoice, "items"> & {
+  items: SerializedInvoiceItem[];
+};
+
 type Props = {
-  invoice?: Invoice & { items: InvoiceItem[] };
+  invoice?: SerializedInvoice | null;
   customers: { id: string; name: string }[];
 };
 
@@ -201,7 +209,6 @@ export function InvoiceForm({ invoice, customers }: Props) {
                       value={field.value || ""}
                       placeholder="Auto (ex: 26303)"
                       // On désactive souvent l'édition du numéro en mode update pour éviter les trous de séquence
-                      disabled={isEditMode && !!field.value}
                     />
                   </FormControl>
                   <FormMessage />

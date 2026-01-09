@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { getUserContext } from "@/lib/context/context";
-import { CustomerType } from "@prisma/client";
 import { redirect } from "next/navigation";
 
 export type ActionState = {
@@ -15,7 +14,7 @@ export type ActionState = {
 
 // 1. On définit la structure de base (sans le superRefine)
 const BaseCustomerSchema = z.object({
-  type: z.nativeEnum(CustomerType),
+  type: z.enum(["INDIVIDUAL", "COMPANY"]),
   firstName: z.string().optional(),
   lastName: z.string().optional(),
   companyName: z.string().optional().nullable(),
@@ -67,8 +66,6 @@ export async function createCustomer(formData: FormData) {
   const { organization } = await getUserContext();
   if (!organization) return { error: "Organisation introuvable" };
 
-  console.log(formData);
-
   // 1. Déterminer le type
   const isCompany = formData.get("isCompany") === "true";
   const type = isCompany ? "COMPANY" : "INDIVIDUAL";
@@ -89,8 +86,6 @@ export async function createCustomer(formData: FormData) {
 
   // 2. Validation Zod
   const validated = CustomerSchema.safeParse(rawData);
-
-  console.log(validated);
 
   if (!validated.success) {
     return { error: validated.error.flatten().fieldErrors };

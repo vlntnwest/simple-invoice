@@ -16,7 +16,7 @@ export const invoiceItemSchema = z.object({
   unite: z.string().default("unité"),
   price: z.number().min(0), // En centimes
   discount: z.number().min(0).default(0), // En pourcentage
-  taxRate: z.number().min(0).default(20), // En pourcentage
+  taxRate: z.number().min(0).max(100).default(20), // En pourcentage
 });
 
 // Schema complet pour la création

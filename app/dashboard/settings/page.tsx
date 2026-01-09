@@ -42,8 +42,13 @@ export default async function SettingsPage() {
                 <CardTitle>Informations de l'entreprise</CardTitle>
               </CardHeader>
               <CardContent>
-                {/* On passe les données au composant client */}
-                <OrganizationForm organization={currentOrg!} />
+                {currentOrg ? (
+                  <OrganizationForm organization={currentOrg} />
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground">
+                    Aucune organisation sélectionnée ou trouvée.
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

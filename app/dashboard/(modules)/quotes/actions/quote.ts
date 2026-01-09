@@ -4,7 +4,6 @@ import prisma from "@/lib/prisma";
 import { createQuoteSchema, CreateQuoteValues } from "../lib/schemas/quote";
 import { revalidatePath } from "next/cache";
 import { getUserContext } from "@/lib/context/context";
-import { quoteEvents } from "../lib/events/quote-events";
 import { requireUserOrganization } from "@/lib/context/organization";
 
 // --- HELPERS METIER ---
@@ -71,50 +70,65 @@ function generateNextInvoiceNumber(lastNumber: string | undefined): string {
 
 // --- ACTIONS ---
 
-export async function createQuote(values: CreateQuoteValues) {
+export async function createQuote(
+  values: CreateQuoteValues
+): Promise<ActionState> {
+  // 1. Auth & Org
   const { organization } = await getUserContext();
-  if (!organization) throw new Error("Unauthorized");
+  if (!organization) return { error: "Unauthorized" };
 
-  const validatedFields = createQuoteSchema.parse(values);
+  // Validation
+  const validated = createQuoteSchema.safeParse(values);
+  if (!validated.success) {
+    return {
+      error: "Données invalides",
+      fieldErrors: validated.error.flatten().fieldErrors,
+    };
+  }
+
+  const validatedFields = validated.data;
   const calculation = calculateQuoteTotals(validatedFields.items);
 
-  // Génération du numéro si absent
-  let quoteNumber = validatedFields.number;
-  if (!quoteNumber || quoteNumber.trim() === "") {
-    const lastQuote = await prisma.quote.findFirst({
-      where: { organizationId: organization.id },
-      orderBy: { createdAt: "desc" },
-      select: { number: true },
+  try {
+    const newQuote = await prisma.$transaction(async (tx) => {
+      let quoteNumber = validatedFields.number;
+
+      // Génération du numéro si absent
+      if (!quoteNumber || quoteNumber.trim() === "") {
+        const lastQuote = await tx.quote.findFirst({
+          where: { organizationId: organization.id },
+          orderBy: { createdAt: "desc" },
+          select: { number: true },
+        });
+        quoteNumber = generateNextNumber(lastQuote?.number);
+      }
+
+      return await tx.quote.create({
+        data: {
+          organizationId: organization.id,
+          number: quoteNumber,
+          customerId: validatedFields.customerId,
+          date: validatedFields.date,
+          validUntil: validatedFields.validUntil,
+          status: validatedFields.status,
+          note: validatedFields.note,
+          subtotal: calculation.subtotal,
+          tax: calculation.tax,
+          total: calculation.total,
+          items: {
+            create: calculation.items,
+          },
+        },
+      });
     });
-    quoteNumber = generateNextNumber(lastQuote?.number);
+
+    revalidatePath("/dashboard/quotes");
+
+    return { success: true, id: newQuote.id };
+  } catch (error: any) {
+    console.error("Erreur createQuote:", error);
+    return { error: "Erreur technique lors de la création du devis." };
   }
-
-  // 1. Création en base
-  const newQuote = await prisma.quote.create({
-    data: {
-      organizationId: organization.id,
-      number: quoteNumber,
-      customerId: validatedFields.customerId,
-      date: validatedFields.date,
-      validUntil: validatedFields.validUntil,
-      status: validatedFields.status,
-      note: validatedFields.note,
-      subtotal: calculation.subtotal,
-      tax: calculation.tax,
-      total: calculation.total,
-      items: {
-        create: calculation.items,
-      },
-    },
-  });
-
-  // 2. TRIGGER : Si créé directement en SENT, on déclenche les events (PDF, Email...)
-  if (newQuote.status === "SENT") {
-    await quoteEvents.onValidate(newQuote.id);
-  }
-
-  revalidatePath("/dashboard/quotes");
-  return { success: true, id: newQuote.id };
 }
 
 export async function updateQuote(
@@ -164,11 +178,6 @@ export async function updateQuote(
       return inv;
     });
 
-    // 2. TRIGGER : Si le statut est passé à SENT, on déclenche les events
-    if (updatedQuote.status === "SENT") {
-      await quoteEvents.onValidate(updatedQuote.id);
-    }
-
     revalidatePath("/dashboard/quotes");
     revalidatePath(`/dashboard/quotes/edit/${quoteId}`);
     return { success: true, id: quoteId };
@@ -205,13 +214,10 @@ export async function validateQuote(quoteId: string): Promise<ActionState> {
   if (!organization) return { error: "Non autorisé" };
 
   try {
-    const updatedQuote = await prisma.quote.update({
+    await prisma.quote.update({
       where: { id: quoteId, organizationId: organization.id },
       data: { status: "SENT" },
     });
-
-    // TRIGGER via le bouton dédié aussi
-    await quoteEvents.onValidate(updatedQuote.id);
 
     revalidatePath("/dashboard/quotes");
     return { success: true, id: quoteId };
@@ -224,30 +230,48 @@ export async function getQuotes() {
   const organizationId = await requireUserOrganization();
   if (!organizationId) return [];
 
-  return await prisma.quote.findMany({
+  const quotes = await prisma.quote.findMany({
     where: { organizationId },
     include: {
       customer: {
         select: { companyName: true, firstName: true, lastName: true },
       },
+      items: true,
     },
     orderBy: { createdAt: "desc" },
   });
+
+  return quotes.map((quote) => ({
+    ...quote,
+    items: quote.items?.map((item) => ({
+      ...item,
+      taxRate: item.taxRate ? item.taxRate.toNumber() : 20,
+    })),
+  }));
 }
 
 export async function getClientQuotes(customerId: string) {
   const organizationId = await requireUserOrganization();
   if (!organizationId) return [];
 
-  return await prisma.quote.findMany({
+  const quotes = await prisma.quote.findMany({
     where: { customerId, organizationId },
     include: {
       customer: {
         select: { companyName: true, firstName: true, lastName: true },
       },
+      items: true,
     },
     orderBy: { createdAt: "desc" },
   });
+
+  return quotes.map((quote) => ({
+    ...quote,
+    items: quote.items?.map((item) => ({
+      ...item,
+      taxRate: item.taxRate ? item.taxRate.toNumber() : 20,
+    })),
+  }));
 }
 
 export async function transformQuoteToInvoice(quoteId: string) {
@@ -255,23 +279,7 @@ export async function transformQuoteToInvoice(quoteId: string) {
   const organizationId = await requireUserOrganization();
   if (!organizationId) return { error: "Non autorisé" };
 
-  // 2. VÉRIFICATION
-  const existingInvoice = await prisma.invoice.findUnique({
-    where: {
-      fromQuoteId: quoteId,
-    },
-    select: { id: true },
-  });
-
-  if (existingInvoice) {
-    return {
-      success: true,
-      invoiceId: existingInvoice.id,
-      message: "Cette facture existe déjà.",
-    };
-  }
-
-  // 3. Fetch du Devis
+  // 2. Fetch du Devis
   const quote = await prisma.quote.findUnique({
     where: {
       id: quoteId,
@@ -284,18 +292,31 @@ export async function transformQuoteToInvoice(quoteId: string) {
 
   try {
     // 3. Transaction Database
-    const newInvoiceId = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
+      // SECURITY: Check for existing invoice INSIDE transaction with organizationId filter
+      // Use findFirst because findUnique requires unique constraint on ALL where fields
+      const existingInvoice = await tx.invoice.findFirst({
+        where: {
+          fromQuoteId: quoteId,
+          organizationId: organizationId,
+        },
+        select: { id: true },
+      });
+
+      if (existingInvoice) {
+        return { existingId: existingInvoice.id };
+      }
+
       // A. Passer le devis en ACCEPTED
       await tx.quote.update({
         where: { id: quoteId },
         data: { status: "ACCEPTED" },
       });
 
-      // B. Générer le numéro de facture (INTEGRATION DE TA LOGIQUE)
-      // On utilise 'tx' ici pour rester dans le contexte de la transaction
+      // B. Générer le numéro de facture
       const lastInvoice = await tx.invoice.findFirst({
         where: { organizationId: organizationId },
-        orderBy: { createdAt: "desc" }, // On cherche la dernière créée
+        orderBy: { createdAt: "desc" },
         select: { number: true },
       });
 
@@ -313,14 +334,12 @@ export async function transformQuoteToInvoice(quoteId: string) {
           date: new Date(),
           dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // J+30
 
-          // Copie des montants (Cache)
           subtotal: quote.subtotal,
           discount: quote.discount,
           tax: quote.tax,
           total: quote.total,
           note: quote.note,
 
-          // Création des items
           items: {
             create: quote.items.map((item) => ({
               description: item.description,
@@ -336,23 +355,32 @@ export async function transformQuoteToInvoice(quoteId: string) {
         select: { id: true },
       });
 
-      return invoice.id;
+      return { newId: invoice.id };
     });
 
     // 4. Succès & Revalidation
+    if (result.existingId) {
+      return {
+        success: true,
+        invoiceId: result.existingId,
+        message: "Cette facture existe déjà.",
+      };
+    }
+
     revalidatePath("/dashboard/quotes");
     revalidatePath("/dashboard/invoices");
 
     return {
       success: true,
-      invoiceId: newInvoiceId,
+      invoiceId: result.newId,
       message: "Facture créée avec succès !",
     };
   } catch (error) {
     console.error("Erreur transformation devis->facture:", error);
-    // Gestion basique d'erreur de contrainte unique (si deux factures ont le même numéro par malchance)
     if ((error as any).code === "P2002") {
-      return { error: "Erreur de numérotation, veuillez réessayer." };
+      return {
+        error: "Erreur de numérotation ou conflit, veuillez réessayer.",
+      };
     }
     return { error: "Une erreur est survenue lors de la création." };
   }
