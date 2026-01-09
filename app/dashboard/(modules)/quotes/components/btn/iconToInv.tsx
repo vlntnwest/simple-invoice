@@ -18,6 +18,7 @@ export function IconToInv({ id }: IconToInvProps) {
         transform(id);
       }}
       disabled={isPending}
+      aria-label="Transformer en facture"
     >
       <ReceiptEuro className="size-6" />
     </Button>

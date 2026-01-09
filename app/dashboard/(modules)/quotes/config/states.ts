@@ -1,6 +1,6 @@
 export const STATEVALUES = {
   DRAFT: "Brouillon",
-  SENT: "Envoyée",
+  SENT: "Envoyé",
   ACCEPTED: "Accepté",
   REJECTED: "Rejeté",
   EXPIRED: "Expiré",

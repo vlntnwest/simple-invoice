@@ -33,32 +33,32 @@ enum QuoteStatus {
 
 enum CustomerType {
   INDIVIDUAL // Particulier
-  COMPANY    // Professionnel
+  COMPANY // Professionnel
 }
 
 // --- MODELS ---
 
 model Organization {
-  id        String   @id @default(cuid())
-  name      String   // Nom commercial
-  email     String?
-  phone     String?
-  logoLink  String?
-  
+  id       String  @id @default(cuid())
+  name     String // Nom commercial
+  email    String?
+  phone    String?
+  logoLink String?
+
   // Legal Address
-  address   String?
-  city      String?
-  zipCode   String?
-  country   String?  @default("France")
-  
+  address String?
+  city    String?
+  zipCode String?
+  country String? @default("France")
+
   // Legal Info
-  siret     String?  // Obligatoire sur facture
-  vatNumber String?  // TVA Intracommunautaire
-  
+  siret     String? // Obligatoire sur facture
+  vatNumber String? // TVA Intracommunautaire
+
   // Banking (RIB)
-  iban      String?
-  bic       String?
-  bankName  String?
+  iban     String?
+  bic      String?
+  bankName String?
 
   memberships Membership[] // Liste des membres
 
@@ -72,25 +72,25 @@ model Organization {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
+  id        String  @id @default(uuid())
+  email     String  @unique
   firstName String?
   lastName  String?
-  
+
   memberships Membership[]
 
-  lastViewedOrgId String? 
+  lastViewedOrgId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Membership {
-  id        String   @id @default(cuid())
-  role      UserRole @default(MEMBER)
+  id   String   @id @default(cuid())
+  role UserRole @default(MEMBER)
 
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
@@ -105,27 +105,27 @@ model Membership {
 }
 
 model Customer {
-  id    String       @id @default(cuid())
-  type  CustomerType @default(COMPANY)
-  
+  id   String       @id @default(cuid())
+  type CustomerType @default(COMPANY)
+
   // Si Company
   companyName String?
-  vatNumber   String? 
-  
+  vatNumber   String?
+
   // Contact (Si Individual OU contact chez Company)
-  firstName   String?
-  lastName    String?
-  
+  firstName String?
+  lastName  String?
+
   email String?
   phone String?
-  
-  // Address
-  address   String?
-  city      String?
-  zipCode   String?
-  country   String?
 
-  note      String?
+  // Address
+  address String?
+  city    String?
+  zipCode String?
+  country String?
+
+  note String?
 
   // SECURITY: Multi-tenant filter
   organizationId String
@@ -142,21 +142,19 @@ model Customer {
 }
 
 model Invoice {
-  id          String        @id @default(cuid())
-  number      String        // Ex: INV-2024-001
-  status      InvoiceStatus @default(DRAFT)
-  date        DateTime      @default(now())
-  dueDate     DateTime
-  
+  id      String        @id @default(cuid())
+  number  String // Ex: INV-2024-001
+  status  InvoiceStatus @default(DRAFT)
+  date    DateTime      @default(now())
+  dueDate DateTime
+
   // Money stored in CENTS (Int)
-  // Ces champs sont des CACHES calculés (somme des items) pour éviter de recalculer à chaque lecture
-  subtotal    Int           @default(0) 
-  discount    Int           @default(0)
-  tax         Int           @default(0)
-  total       Int           @default(0)
+  subtotal Int @default(0)
+  discount Int @default(0)
+  tax      Int @default(0)
+  total    Int @default(0)
 
-  note        String?
-
+  note           String?
   // SECURITY: Multi-tenant filter
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
@@ -164,8 +162,8 @@ model Invoice {
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id])
 
-fromQuoteId    String?      @unique 
-  fromQuote      Quote?       @relation(fields: [fromQuoteId], references: [id])
+  fromQuoteId String? @unique
+  fromQuote   Quote?  @relation(fields: [fromQuoteId], references: [id])
 
   items InvoiceItem[]
 
@@ -181,30 +179,30 @@ model InvoiceItem {
   description String
   details     String?
   quantity    Int     @default(1)
-  unite       String @default("unité")
+  unite       String  @default("unité")
   discount    Int     @default(0)
-  
-  price       Int     // Prix unitaire HT en CENTS
-  taxRate      Float @default(20.0)
+
+  price     Int // Prix unitaire HT en CENTS
+  taxRate   Float   @default(20.0)
   invoiceId String
   invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 }
 
 model Quote {
-  id          String      @id @default(cuid())
-  number      String      // Ex: DEVIS-2024-001
-  status      QuoteStatus @default(DRAFT)
-  date        DateTime    @default(now())
-  validUntil  DateTime
+  id         String      @id @default(cuid())
+  number     String // Ex: DEVIS-2024-001
+  status     QuoteStatus @default(DRAFT)
+  date       DateTime    @default(now())
+  validUntil DateTime
 
-  note        String?
+  note String?
 
   // Money stored in CENTS (Int)
   // Ces champs sont des CACHES calculés (somme des items) pour éviter de recalculer à chaque lecture
-  subtotal    Int         @default(0)
-  discount    Int         @default(0)
-  tax         Int         @default(0)
-  total       Int         @default(0)
+  subtotal Int @default(0)
+  discount Int @default(0)
+  tax      Int @default(0)
+  total    Int @default(0)
 
   // SECURITY: Multi-tenant filter
   organizationId String
@@ -215,7 +213,7 @@ model Quote {
 
   items QuoteItem[]
 
-generatedInvoice Invoice?
+  generatedInvoice Invoice?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -229,11 +227,11 @@ model QuoteItem {
   description String
   details     String?
   quantity    Int     @default(1)
-  unite       String @default("unité")
+  unite       String  @default("unité")
   discount    Int     @default(0)
-  
-  price       Int     // Prix unitaire HT en CENTS
-taxRate      Float @default(20.0)
+
+  price   Int // Prix unitaire HT en CENTS
+  taxRate Float  @default(20.0)
   quoteId String
-  quote   Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  quote   Quote  @relation(fields: [quoteId], references: [id], onDelete: Cascade)
 }

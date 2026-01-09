@@ -49,7 +49,9 @@ export default async function QuotesPage() {
                       <div className="flex items-center max-w-full">
                         <span className="inline-flex items-center">
                           <span className="text-base font-semibold after:content-['·'] after:mx-1">
-                            {quote.validUntil < new Date()
+                            {quote.validUntil < new Date() &&
+                            quote.status !== "ACCEPTED" &&
+                            quote.status !== "REJECTED"
                               ? STATEVALUES["EXPIRED"]
                               : STATEVALUES[
                                   quote.status as keyof typeof STATEVALUES
