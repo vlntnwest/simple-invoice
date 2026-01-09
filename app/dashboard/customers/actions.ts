@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { getUserContext } from "@/lib/context/context";
-import { CustomerType } from "@prisma/client";
 import { redirect } from "next/navigation";
 
 export type ActionState = {
@@ -15,7 +14,7 @@ export type ActionState = {
 
 // 1. On définit la structure de base (sans le superRefine)
 const BaseCustomerSchema = z.object({
-  type: z.nativeEnum(CustomerType),
+  type: z.enum(["INDIVIDUAL", "COMPANY"]),
   firstName: z.string().optional(),
   lastName: z.string().optional(),
   companyName: z.string().optional().nullable(),
