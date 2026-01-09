@@ -63,13 +63,11 @@ function calculateInvoiceTotals(items: CreateInvoiceValues["items"]) {
 export async function createInvoice(
   values: CreateInvoiceValues
 ): Promise<ActionState> {
-  // 1. Auth & Org
   const user = await getUserContext();
   if (!user || !user.organization) {
     return { error: "Unauthorized" };
   }
 
-  // Validation des données (Safe Parse pour ne pas crash)
   const validated = createInvoiceSchema.safeParse(values);
   if (!validated.success) {
     return {
@@ -80,74 +78,46 @@ export async function createInvoice(
 
   const validatedFields = validated.data;
 
-  // 2. Calculs de sécurité (Côté Serveur)
   const calculation = calculateInvoiceTotals(validatedFields.items);
 
-  // 3. Transaction avec RETRY LOGIC pour gérer les collisions de numéros
-  let attempts = 0;
-  const maxRetries = 3;
+  try {
+    const newInvoice = await prisma.$transaction(async (tx) => {
+      let invoiceNumber = validatedFields.number;
 
-  while (attempts < maxRetries) {
-    try {
-      const newInvoice = await prisma.$transaction(async (tx) => {
-        let invoiceNumber = validatedFields.number;
-
-        // Si pas de numéro fourni, on le génère DANS la transaction
-        if (!invoiceNumber || invoiceNumber.trim() === "") {
-          const lastInvoice = await tx.invoice.findFirst({
-            where: { organizationId: user.organization?.id },
-            orderBy: { createdAt: "desc" },
-            select: { number: true },
-          });
-          invoiceNumber = generateNextNumber(lastInvoice?.number);
-        }
-
-        return await tx.invoice.create({
-          data: {
-            number: invoiceNumber,
-            status: validatedFields.status,
-            date: validatedFields.date,
-            dueDate: validatedFields.dueDate,
-            subtotal: calculation.subtotal,
-            tax: calculation.tax,
-            total: calculation.total,
-            organizationId: user.organization!.id,
-            customerId: validatedFields.customerId,
-            note: validatedFields.note,
-            items: {
-              create: calculation.items,
-            },
-          },
+      if (!invoiceNumber || invoiceNumber.trim() === "") {
+        const lastInvoice = await tx.invoice.findFirst({
+          where: { organizationId: user.organization?.id },
+          orderBy: { createdAt: "desc" },
+          select: { number: true },
         });
-      });
-
-      // Si succès
-      revalidatePath("/dashboard/invoices");
-      return { success: true, id: newInvoice.id };
-    } catch (error: any) {
-      // Gestion de l'erreur Prisma P2002 (Unique constraint failed)
-      if (error.code === "P2002") {
-        // Cas A : L'utilisateur a fourni son propre numéro -> Erreur directe
-        if (validatedFields.number && validatedFields.number.trim() !== "") {
-          return { error: "Ce numéro de facture existe déjà." };
-        }
-
-        // Cas B : Numéro auto-généré -> On réessaie (Collision concurrente)
-        attempts++;
-        if (attempts < maxRetries) {
-          continue; // On boucle pour regénérer un nouveau numéro
-        }
+        invoiceNumber = generateNextNumber(lastInvoice?.number);
       }
 
-      console.error("Erreur createInvoice:", error);
-      return { error: "Erreur technique lors de la création de la facture." };
-    }
-  }
+      return await tx.invoice.create({
+        data: {
+          number: invoiceNumber,
+          status: validatedFields.status,
+          date: validatedFields.date,
+          dueDate: validatedFields.dueDate,
+          subtotal: calculation.subtotal,
+          tax: calculation.tax,
+          total: calculation.total,
+          organizationId: user.organization!.id,
+          customerId: validatedFields.customerId,
+          note: validatedFields.note,
+          items: {
+            create: calculation.items,
+          },
+        },
+      });
+    });
 
-  return {
-    error:
-      "Impossible de générer un numéro unique après plusieurs essais. Veuillez réessayer.",
-  };
+    revalidatePath("/dashboard/invoices");
+    return { success: true, id: newInvoice.id };
+  } catch (error: any) {
+    console.error("Erreur createInvoice:", error);
+    return { error: "Erreur technique lors de la création de la facture." };
+  }
 }
 
 export async function updateInvoice(
@@ -264,7 +234,7 @@ export async function getInvoices() {
     ...invoice,
     items: invoice.items?.map((item) => ({
       ...item,
-      taxRate: item.taxRate != null ? item.taxRate.toNumber() : 20,
+      taxRate: item.taxRate ? item.taxRate.toNumber() : 20,
     })),
   }));
 }
@@ -288,7 +258,7 @@ export async function getClientInvoices(customerId: string) {
     ...invoice,
     items: invoice.items?.map((item) => ({
       ...item,
-      taxRate: item.taxRate != null ? item.taxRate.toNumber() : 20,
+      taxRate: item.taxRate ? item.taxRate.toNumber() : 20,
     })),
   }));
 }

@@ -73,10 +73,11 @@ function generateNextInvoiceNumber(lastNumber: string | undefined): string {
 export async function createQuote(
   values: CreateQuoteValues
 ): Promise<ActionState> {
+  // 1. Auth & Org
   const { organization } = await getUserContext();
   if (!organization) return { error: "Unauthorized" };
 
-  // Validation sécurisée
+  // Validation
   const validated = createQuoteSchema.safeParse(values);
   if (!validated.success) {
     return {
@@ -88,70 +89,46 @@ export async function createQuote(
   const validatedFields = validated.data;
   const calculation = calculateQuoteTotals(validatedFields.items);
 
-  // LOGIQUE DE RETRY POUR EVITER LES COLLISIONS DE NUMERO
-  let attempts = 0;
-  const maxRetries = 3;
+  try {
+    const newQuote = await prisma.$transaction(async (tx) => {
+      let quoteNumber = validatedFields.number;
 
-  while (attempts < maxRetries) {
-    try {
-      const newQuote = await prisma.$transaction(async (tx) => {
-        let quoteNumber = validatedFields.number;
-
-        // Génération du numéro si absent DANS la transaction
-        if (!quoteNumber || quoteNumber.trim() === "") {
-          const lastQuote = await tx.quote.findFirst({
-            where: { organizationId: organization.id },
-            orderBy: { createdAt: "desc" },
-            select: { number: true },
-          });
-          quoteNumber = generateNextNumber(lastQuote?.number);
-        }
-
-        return await tx.quote.create({
-          data: {
-            organizationId: organization.id,
-            number: quoteNumber,
-            customerId: validatedFields.customerId,
-            date: validatedFields.date,
-            validUntil: validatedFields.validUntil,
-            status: validatedFields.status,
-            note: validatedFields.note,
-            subtotal: calculation.subtotal,
-            tax: calculation.tax,
-            total: calculation.total,
-            items: {
-              create: calculation.items,
-            },
-          },
+      // Génération du numéro si absent
+      if (!quoteNumber || quoteNumber.trim() === "") {
+        const lastQuote = await tx.quote.findFirst({
+          where: { organizationId: organization.id },
+          orderBy: { createdAt: "desc" },
+          select: { number: true },
         });
-      });
-
-      revalidatePath("/dashboard/quotes");
-      return { success: true, id: newQuote.id };
-    } catch (error: any) {
-      // Gestion de l'erreur Prisma P2002 (Unique constraint failed)
-      if (error.code === "P2002") {
-        // Cas A : L'utilisateur a fourni son propre numéro -> Erreur directe
-        if (validatedFields.number && validatedFields.number.trim() !== "") {
-          return { error: "Ce numéro de devis existe déjà." };
-        }
-
-        // Cas B : Numéro auto-généré -> On réessaie (Collision concurrente)
-        attempts++;
-        if (attempts < maxRetries) {
-          continue; // On boucle pour regénérer un nouveau numéro
-        }
+        quoteNumber = generateNextNumber(lastQuote?.number);
       }
 
-      console.error("Erreur createQuote:", error);
-      return { error: "Erreur technique lors de la création du devis." };
-    }
-  }
+      return await tx.quote.create({
+        data: {
+          organizationId: organization.id,
+          number: quoteNumber,
+          customerId: validatedFields.customerId,
+          date: validatedFields.date,
+          validUntil: validatedFields.validUntil,
+          status: validatedFields.status,
+          note: validatedFields.note,
+          subtotal: calculation.subtotal,
+          tax: calculation.tax,
+          total: calculation.total,
+          items: {
+            create: calculation.items,
+          },
+        },
+      });
+    });
 
-  return {
-    error:
-      "Impossible de générer un numéro unique après plusieurs essais. Veuillez réessayer.",
-  };
+    revalidatePath("/dashboard/quotes");
+
+    return { success: true, id: newQuote.id };
+  } catch (error: any) {
+    console.error("Erreur createQuote:", error);
+    return { error: "Erreur technique lors de la création du devis." };
+  }
 }
 
 export async function updateQuote(
@@ -268,7 +245,7 @@ export async function getQuotes() {
     ...quote,
     items: quote.items?.map((item) => ({
       ...item,
-      taxRate: item.taxRate != null ? item.taxRate.toNumber() : 20,
+      taxRate: item.taxRate ? item.taxRate.toNumber() : 20,
     })),
   }));
 }
@@ -292,7 +269,7 @@ export async function getClientQuotes(customerId: string) {
     ...quote,
     items: quote.items?.map((item) => ({
       ...item,
-      taxRate: item.taxRate != null ? item.taxRate.toNumber() : 20,
+      taxRate: item.taxRate ? item.taxRate.toNumber() : 20,
     })),
   }));
 }
