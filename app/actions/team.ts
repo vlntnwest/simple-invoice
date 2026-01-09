@@ -4,6 +4,7 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getCurrentOrgId } from "@/app/actions/organization";
+import { createClient } from "@/lib/supabase/server";
 
 // Validation basique
 const inviteSchema = z.object({
@@ -15,22 +16,26 @@ export async function addTeamMember(formData: FormData) {
   const orgId = await getCurrentOrgId();
   if (!orgId) throw new Error("Aucune organisation active");
 
+  // Get current authenticated user
+  const supabase = await createClient();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+  if (!authUser) throw new Error("Non autorisé");
+
   // SECURITY: Vérifier que l'utilisateur actuel est ADMIN de l'org
-  const currentUser = await prisma.user.findFirst({
+  const adminMembership = await prisma.membership.findUnique({
     where: {
-      memberships: {
-        some: {
-          organizationId: orgId,
-          role: "ADMIN", // Seuls les admins peuvent inviter
-        },
+      userId_organizationId: {
+        userId: authUser.id,
+        organizationId: orgId,
       },
     },
   });
 
-  // Note: Dans une vraie app, on utiliserait l'ID du user connecté via Supabase Auth
-  // Ici on assume que le middleware a fait le travail ou on vérifie via cookie/session
-  // Pour simplifier l'exemple, on passe à la suite, mais idéalement :
-  // if (!currentUser) throw new Error("Droits insuffisants")
+  if (!adminMembership || adminMembership.role !== "ADMIN") {
+    throw new Error("Droits insuffisants");
+  }
 
   const rawData = {
     email: formData.get("email"),
@@ -51,15 +56,10 @@ export async function addTeamMember(formData: FormData) {
         where: { email },
       });
 
-      // 2. Si n'existe pas, on le crée (User fantôme pour le moment)
+      // 2. Si n'existe pas, on le crée (User fantôme)
       if (!user) {
-        // Attention: L'ID est généré ici. Si Supabase crée un user plus tard,
-        // il faudra gérer la réconciliation des IDs (souvent via un trigger DB).
         user = await tx.user.create({
-          data: {
-            email,
-            // On peut mettre un flag "isInvited" si tu ajoutes ce champ au schema
-          },
+          data: { email },
         });
       }
 
@@ -90,7 +90,6 @@ export async function addTeamMember(formData: FormData) {
     revalidatePath("/dashboard/settings");
     return { success: true };
   } catch (error: any) {
-    // Si c'est notre erreur manuelle
     if (error.message === "Cet utilisateur est déjà membre de l'équipe") {
       return { success: false, error: "Déjà membre" };
     }
@@ -103,8 +102,37 @@ export async function removeTeamMember(userId: string) {
   const orgId = await getCurrentOrgId();
   if (!orgId) throw new Error("Unauthorized");
 
-  // SECURITY: Multi-tenant delete
-  // Empêcher de se supprimer soi-même si on est le dernier admin (logique à ajouter si besoin)
+  // Get current authenticated user
+  const supabase = await createClient();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+  if (!authUser) throw new Error("Non autorisé");
+
+  // SECURITY: Verify caller is ADMIN
+  const callerMembership = await prisma.membership.findUnique({
+    where: {
+      userId_organizationId: { userId: authUser.id, organizationId: orgId },
+    },
+  });
+  if (!callerMembership || callerMembership.role !== "ADMIN") {
+    throw new Error("Droits insuffisants");
+  }
+
+  // Prevent removing the last admin
+  // On compte les admins de l'organisation
+  const targetMembership = await prisma.membership.findUnique({
+    where: { userId_organizationId: { userId, organizationId: orgId } },
+  });
+
+  if (targetMembership?.role === "ADMIN") {
+    const adminCount = await prisma.membership.count({
+      where: { organizationId: orgId, role: "ADMIN" },
+    });
+    if (adminCount <= 1) {
+      throw new Error("Impossible de supprimer le dernier administrateur");
+    }
+  }
 
   await prisma.membership.delete({
     where: {

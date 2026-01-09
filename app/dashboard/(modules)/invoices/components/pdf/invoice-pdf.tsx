@@ -54,7 +54,8 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
   },
   brandLogoPlaceholder: {
-    fontSize: 20,
+    fontSize: 12,
+    lineHeight: 1.2,
     fontWeight: "bold",
     textTransform: "uppercase",
     marginBottom: 10,

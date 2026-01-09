@@ -1,11 +1,11 @@
-import { QuoteForm } from "../components/quote-form";
+import { InvoiceForm } from "../components/invoice-form";
 import prisma from "@/lib/prisma";
 import { requireUserOrganization } from "@/lib/context/organization";
 import ReturnArrow from "@/components/returnArrow";
 
 // 1. Définition du type pour les props de la pa
 
-export default async function NewQuotePage() {
+export default async function NewInvoicePage() {
   const organizationId = await requireUserOrganization();
   if (!organizationId) return <div>Erreur: Organisation requise</div>;
 
@@ -35,11 +35,11 @@ export default async function NewQuotePage() {
     <div className="w-full p-4">
       <div className="flex items-center space-x-2 mb-4">
         <ReturnArrow />
-        <h1 className="text-2xl font-bold tracking-tight">Nouveau devis</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Nouvelle facture</h1>
       </div>
       <div className="max-w-4xl mx-auto">
         {/* 3. On passe l'ID en prop au formulaire */}
-        <QuoteForm customers={formattedCustomers} />
+        <InvoiceForm customers={formattedCustomers} />
       </div>
     </div>
   );

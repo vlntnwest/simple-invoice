@@ -14,9 +14,19 @@ export async function updateUserProfile(formData: FormData) {
   const firstName = formData.get("firstName") as string;
   const lastName = formData.get("lastName") as string;
 
+  if (firstName.length > 100 || lastName.length > 100) {
+    return {
+      success: false,
+      message: "Le prénom et le nom ne peuvent pas dépasser 100 caractères",
+    };
+  }
+
+  const trimmedFirstName = firstName.trim();
+  const trimmedLastName = lastName.trim();
+
   await prisma.user.update({
     where: { id: user.id },
-    data: { firstName, lastName },
+    data: { firstName: trimmedFirstName, lastName: trimmedLastName },
   });
 
   revalidatePath("/settings");

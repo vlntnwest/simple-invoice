@@ -62,46 +62,75 @@ function calculateInvoiceTotals(items: CreateInvoiceValues["items"]) {
 // --- ACTIONS ---
 
 export async function createInvoice(values: CreateInvoiceValues) {
-  const { organization } = await getUserContext();
-  if (!organization) throw new Error("Unauthorized");
+  // 1. Auth & Org
+  const user = await getUserContext();
+  if (!user || !user.organization) {
+    throw new Error("Unauthorized");
+  }
 
   const validatedFields = createInvoiceSchema.parse(values);
-  const calculation = calculateInvoiceTotals(validatedFields.items);
 
-  // Génération du numéro si absent
-  let invoiceNumber = validatedFields.number;
-  if (!invoiceNumber || invoiceNumber.trim() === "") {
-    const lastInvoice = await prisma.invoice.findFirst({
-      where: { organizationId: organization.id },
-      orderBy: { createdAt: "desc" },
-      select: { number: true },
-    });
-    invoiceNumber = generateNextNumber(lastInvoice?.number);
-  }
+  // 2. Calculs de sécurité (Côté Serveur)
+  let calculatedSubtotal = 0; // HT
+  let calculatedTax = 0; // TVA
 
-  // 1. Création en base
-  const newInvoice = await prisma.invoice.create({
-    data: {
-      organizationId: organization.id,
-      number: invoiceNumber,
-      customerId: validatedFields.customerId,
-      date: validatedFields.date,
-      dueDate: validatedFields.dueDate,
-      status: validatedFields.status,
-      note: validatedFields.note,
-      subtotal: calculation.subtotal,
-      tax: calculation.tax,
-      total: calculation.total,
-      items: {
-        create: calculation.items,
-      },
-    },
+  const itemsToCreate = validatedFields.items.map((item) => {
+    const priceInCents = Math.round(item.price * 100);
+    const quantity = item.quantity;
+    const taxRate = item.taxRate;
+
+    const lineSubtotal = priceInCents * quantity;
+    const lineTax = lineSubtotal * (taxRate / 100);
+
+    calculatedSubtotal += lineSubtotal;
+    calculatedTax += lineTax;
+
+    return {
+      description: item.description,
+      details: item.details,
+      quantity: quantity,
+      unite: item.unite,
+      price: priceInCents,
+      taxRate: taxRate,
+    };
   });
 
-  // 2. TRIGGER : Si créé directement en SENT, on déclenche les events (PDF, Email...)
-  if (newInvoice.status === "SENT") {
-    await invoiceEvents.onValidate(newInvoice.id);
-  }
+  const finalSubtotal = Math.round(calculatedSubtotal);
+  const finalTax = Math.round(calculatedTax);
+  const finalTotal = finalSubtotal + finalTax;
+
+  // 3. Transaction avec calcul de numéro ATOMIQUE (ou presque)
+  const newInvoice = await prisma.$transaction(async (tx) => {
+    let invoiceNumber = validatedFields.number;
+
+    // Si pas de numéro fourni, on le génère DANS la transaction
+    if (!invoiceNumber || invoiceNumber.trim() === "") {
+      const lastInvoice = await tx.invoice.findFirst({
+        where: { organizationId: user.organization?.id },
+        orderBy: { createdAt: "desc" },
+        select: { number: true },
+      });
+      invoiceNumber = generateNextNumber(lastInvoice?.number);
+    }
+
+    return await tx.invoice.create({
+      data: {
+        number: invoiceNumber,
+        status: validatedFields.status,
+        date: validatedFields.date,
+        dueDate: validatedFields.dueDate,
+        subtotal: finalSubtotal,
+        tax: finalTax,
+        total: finalTotal,
+        organizationId: user.organization!.id,
+        customerId: validatedFields.customerId,
+        note: validatedFields.note,
+        items: {
+          create: itemsToCreate,
+        },
+      },
+    });
+  });
 
   revalidatePath("/dashboard/invoices");
   return { success: true, id: newInvoice.id };

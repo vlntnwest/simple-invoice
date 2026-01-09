@@ -7,23 +7,51 @@ import { cookies } from "next/headers";
 
 // --- Récupérer l'org active ---
 export async function getCurrentOrgId() {
-  const cookieStore = await cookies();
-  const orgId = cookieStore.get("current_org_id")?.value;
-
-  if (orgId) return orgId;
-
-  // Fallback: Récupérer depuis la DB si pas de cookie
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (user) {
-    const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-    if (dbUser?.lastViewedOrgId) return dbUser.lastViewedOrgId;
-  }
-  return null;
-}
 
+  if (!user) return null;
+
+  const cookieStore = await cookies();
+  const cookieOrgId = cookieStore.get("current_org_id")?.value;
+
+  // 1. Si cookie présent, on vérifie l'appartenance
+  if (cookieOrgId) {
+    const membership = await prisma.membership.findUnique({
+      where: {
+        userId_organizationId: {
+          userId: user.id,
+          organizationId: cookieOrgId,
+        },
+      },
+    });
+    if (membership) return cookieOrgId;
+  }
+
+  // 2. Fallback: Récupérer depuis la DB (lastViewedOrgId)
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  if (dbUser?.lastViewedOrgId) {
+    // Vérif double sécurité
+    const membership = await prisma.membership.findUnique({
+      where: {
+        userId_organizationId: {
+          userId: user.id,
+          organizationId: dbUser.lastViewedOrgId,
+        },
+      },
+    });
+    if (membership) return dbUser.lastViewedOrgId;
+  }
+
+  // 3. Dernier recours : Premier org trouvé
+  const firstMembership = await prisma.membership.findFirst({
+    where: { userId: user.id },
+  });
+
+  return firstMembership?.organizationId || null;
+}
 // --- Création d'une nouvelle entreprise ---
 export async function createOrganization(formData: FormData) {
   const supabase = await createClient();
