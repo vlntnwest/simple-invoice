@@ -224,30 +224,48 @@ export async function getQuotes() {
   const organizationId = await requireUserOrganization();
   if (!organizationId) return [];
 
-  return await prisma.quote.findMany({
+  const quotes = await prisma.quote.findMany({
     where: { organizationId },
     include: {
       customer: {
         select: { companyName: true, firstName: true, lastName: true },
       },
+      items: true,
     },
     orderBy: { createdAt: "desc" },
   });
+
+  return quotes.map((quote) => ({
+    ...quote,
+    items: quote.items?.map((item) => ({
+      ...item,
+      taxRate: item.taxRate.toNumber(),
+    })),
+  }));
 }
 
 export async function getClientQuotes(customerId: string) {
   const organizationId = await requireUserOrganization();
   if (!organizationId) return [];
 
-  return await prisma.quote.findMany({
+  const quotes = await prisma.quote.findMany({
     where: { customerId, organizationId },
     include: {
       customer: {
         select: { companyName: true, firstName: true, lastName: true },
       },
+      items: true,
     },
     orderBy: { createdAt: "desc" },
   });
+
+  return quotes.map((quote) => ({
+    ...quote,
+    items: quote.items?.map((item) => ({
+      ...item,
+      taxRate: item.taxRate.toNumber(),
+    })),
+  }));
 }
 
 export async function transformQuoteToInvoice(quoteId: string) {

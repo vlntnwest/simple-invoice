@@ -243,30 +243,48 @@ export async function getInvoices() {
   const organizationId = await requireUserOrganization();
   if (!organizationId) return [];
 
-  return await prisma.invoice.findMany({
+  const invoices = await prisma.invoice.findMany({
     where: { organizationId },
     include: {
       customer: {
         select: { companyName: true, firstName: true, lastName: true },
       },
+      items: true,
     },
     orderBy: { createdAt: "desc" },
   });
+
+  return invoices.map((invoice) => ({
+    ...invoice,
+    items: invoice.items?.map((item) => ({
+      ...item,
+      taxRate: item.taxRate.toNumber(),
+    })),
+  }));
 }
 
 export async function getClientInvoices(customerId: string) {
   const organizationId = await requireUserOrganization();
   if (!organizationId) return [];
 
-  return await prisma.invoice.findMany({
+  const invoices = await prisma.invoice.findMany({
     where: { customerId, organizationId },
     include: {
       customer: {
         select: { companyName: true, firstName: true, lastName: true },
       },
+      items: true,
     },
     orderBy: { createdAt: "desc" },
   });
+
+  return invoices.map((invoice) => ({
+    ...invoice,
+    items: invoice.items?.map((item) => ({
+      ...item,
+      taxRate: item.taxRate.toNumber(),
+    })),
+  }));
 }
 
 // Types

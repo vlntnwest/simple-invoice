@@ -37,8 +37,16 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Invoice, InvoiceItem } from "@prisma/client";
 
+type SerializedQuoteItem = Omit<InvoiceItem, "taxRate"> & {
+  taxRate: number;
+};
+
+type SerializedQuote = Omit<Invoice, "items"> & {
+  items: SerializedQuoteItem[];
+};
+
 type Props = {
-  invoice?: Invoice & { items: InvoiceItem[] };
+  invoice?: SerializedQuote | null;
   customers: { id: string; name: string }[];
 };
 

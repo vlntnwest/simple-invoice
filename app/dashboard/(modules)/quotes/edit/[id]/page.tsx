@@ -16,19 +16,27 @@ export default async function EditQuotePage({ params }: PageProps) {
 
   // 1. Récupération de le devis AVEC les items
   // SECURITY: Multi-tenant filter
-  const quote = await prisma.quote.findFirst({
+  const rawQuote = await prisma.quote.findFirst({
     where: {
       id: id,
       organizationId: organization.id,
     },
     include: {
-      items: true, // CRITIQUE: Nécessaire pour pré-remplir le formulaire
+      items: true,
     },
   });
 
-  if (!quote) {
+  if (!rawQuote) {
     notFound();
   }
+
+  const quote = {
+    ...rawQuote,
+    items: rawQuote.items?.map((item) => ({
+      ...item,
+      taxRate: item.taxRate.toNumber(),
+    })),
+  };
 
   // 2. Récupération des clients pour le select
   // SECURITY: Multi-tenant filter
@@ -54,7 +62,6 @@ export default async function EditQuotePage({ params }: PageProps) {
         </div>
         <DeleteBtn quoteId={id} />
       </div>
-      {/* On passe le devis et les clients au formulaire */}
       <div className="max-w-4xl mx-auto">
         <QuoteForm quote={quote} customers={formattedCustomers} />
       </div>

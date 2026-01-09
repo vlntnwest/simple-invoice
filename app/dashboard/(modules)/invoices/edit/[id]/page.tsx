@@ -16,7 +16,7 @@ export default async function EditInvoicePage({ params }: PageProps) {
 
   // 1. Récupération de la facture AVEC les items
   // SECURITY: Multi-tenant filter
-  const invoice = await prisma.invoice.findFirst({
+  const rawInvoice = await prisma.invoice.findFirst({
     where: {
       id: id,
       organizationId: organization.id,
@@ -26,9 +26,17 @@ export default async function EditInvoicePage({ params }: PageProps) {
     },
   });
 
-  if (!invoice) {
+  if (!rawInvoice) {
     notFound();
   }
+
+  const invoice = {
+    ...rawInvoice,
+    items: rawInvoice.items?.map((item) => ({
+      ...item,
+      taxRate: item.taxRate.toNumber(),
+    })),
+  };
 
   // 2. Récupération des clients pour le select
   // SECURITY: Multi-tenant filter

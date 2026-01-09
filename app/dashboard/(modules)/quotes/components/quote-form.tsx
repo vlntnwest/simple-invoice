@@ -37,8 +37,16 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Quote, QuoteItem } from "@prisma/client";
 
+type SerializedQuoteItem = Omit<QuoteItem, "taxRate"> & {
+  taxRate: number;
+};
+
+type SerializedQuote = Omit<Quote, "items"> & {
+  items: SerializedQuoteItem[];
+};
+
 type Props = {
-  quote?: Quote & { items: QuoteItem[] };
+  quote?: SerializedQuote | null;
   customers: { id: string; name: string }[];
 };
 
@@ -74,7 +82,7 @@ export function QuoteForm({ quote, customers }: Props) {
           quantity: item.quantity,
           unite: item.unite ?? "unité",
           price: item.price / 100,
-          taxRate: Number(item.taxRate),
+          taxRate: item.taxRate,
           discount: item.discount ?? 0,
         }))
       : [
